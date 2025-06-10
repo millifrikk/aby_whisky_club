@@ -46,4 +46,38 @@ router.get('/content/moderation', AdminController.getContentForModeration);
 // @access  Private (Admin only)
 router.post('/content/:content_type/:content_id/moderate', AdminController.moderateContent);
 
+// System Settings Routes
+
+// @route   GET /api/admin/settings
+// @desc    Get all system settings
+// @access  Private (Admin only)
+router.get('/settings', AdminController.getSystemSettings);
+
+// @route   PUT /api/admin/settings/:key
+// @desc    Update system setting
+// @access  Private (Admin only)
+router.put('/settings/:key', AdminController.updateSystemSetting);
+
+// @route   POST /api/admin/settings
+// @desc    Create new system setting
+// @access  Private (Admin only)
+router.post('/settings', AdminController.createSystemSetting);
+
+// @route   DELETE /api/admin/settings/:key
+// @desc    Delete system setting
+// @access  Private (Admin only)
+router.delete('/settings/:key', AdminController.deleteSystemSetting);
+
+// Data Export/Import Routes
+
+// @route   GET /api/admin/export
+// @desc    Export data to CSV/JSON
+// @access  Private (Admin only)
+router.get('/export', AdminController.exportData);
+
+// @route   POST /api/admin/import
+// @desc    Import data from JSON
+// @access  Private (Admin only)
+router.post('/import', AdminController.importData);
+
 module.exports = router;

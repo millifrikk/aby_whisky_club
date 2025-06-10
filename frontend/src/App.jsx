@@ -23,6 +23,8 @@ import WhiskyForm from './pages/admin/WhiskyForm';
 import NewsEventForm from './pages/admin/NewsEventForm';
 import UserManagementPage from './pages/admin/UserManagementPage';
 import ContentModerationPage from './pages/admin/ContentModerationPage';
+import SystemSettingsPage from './pages/admin/SystemSettingsPage';
+import DataExportPage from './pages/admin/DataExportPage';
 
 function App() {
   return (
@@ -142,6 +144,22 @@ function App() {
                 element={
                   <ProtectedRoute requireRole="admin">
                     <ContentModerationPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/settings" 
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <SystemSettingsPage />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/export" 
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <DataExportPage />
                   </ProtectedRoute>
                 } 
               />

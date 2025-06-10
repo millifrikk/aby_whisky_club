@@ -7,6 +7,7 @@ const Distillery = require('./Distillery');
 const Rating = require('./Rating');
 const NewsEvent = require('./NewsEvent');
 const EventRSVP = require('./EventRSVP');
+const SystemSetting = require('./SystemSetting');
 
 // Set up associations
 const models = {
@@ -15,7 +16,8 @@ const models = {
   Distillery,
   Rating,
   NewsEvent,
-  EventRSVP
+  EventRSVP,
+  SystemSetting
 };
 
 // Initialize associations
@@ -50,5 +52,6 @@ module.exports = {
   Distillery,
   Rating,
   NewsEvent,
-  EventRSVP
+  EventRSVP,
+  SystemSetting
 };

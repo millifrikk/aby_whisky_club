@@ -98,6 +98,33 @@ const AdminDashboard = () => {
         </Link>
       </div>
 
+      {/* Additional Admin Tools */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <Link
+          to="/admin/settings"
+          className="bg-gray-600 text-white p-6 rounded-lg shadow-md hover:bg-gray-700 transition-colors"
+        >
+          <div className="text-3xl mb-4">⚙️</div>
+          <h3 className="text-lg font-semibold">System Settings</h3>
+          <p className="text-gray-100">Configure application settings</p>
+        </Link>
+
+        <Link
+          to="/admin/export"
+          className="bg-indigo-600 text-white p-6 rounded-lg shadow-md hover:bg-indigo-700 transition-colors"
+        >
+          <div className="text-3xl mb-4">📤</div>
+          <h3 className="text-lg font-semibold">Data Export</h3>
+          <p className="text-indigo-100">Export system data</p>
+        </Link>
+
+        <div className="bg-orange-600 text-white p-6 rounded-lg shadow-md opacity-75">
+          <div className="text-3xl mb-4">📊</div>
+          <h3 className="text-lg font-semibold">Analytics</h3>
+          <p className="text-orange-100">Coming soon...</p>
+        </div>
+      </div>
+
       {/* Statistics */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white p-6 rounded-lg shadow-md">

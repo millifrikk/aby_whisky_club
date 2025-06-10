@@ -1,6 +1,7 @@
 require('dotenv').config();
-const { testConnection, syncDatabase, User, Whisky, Distillery, NewsEvent } = require('../models');
+const { testConnection, syncDatabase, User, Whisky, Distillery, NewsEvent, SystemSetting } = require('../models');
 const seedData = require('./seed');
+const AdminController = require('../controllers/adminController');
 
 const initializeDatabase = async () => {
   try {
@@ -18,11 +19,12 @@ const initializeDatabase = async () => {
 
     // Check if database has data
     console.log('🔍 Checking for existing data...');
-    const [userCount, whiskyCount, distilleryCount, eventCount] = await Promise.all([
+    const [userCount, whiskyCount, distilleryCount, eventCount, settingsCount] = await Promise.all([
       User.count(),
       Whisky.count(),
       Distillery.count(),
-      NewsEvent.count()
+      NewsEvent.count(),
+      SystemSetting.count()
     ]);
 
     console.log(`📊 Current data count:`);
@@ -30,6 +32,7 @@ const initializeDatabase = async () => {
     console.log(`   🥃 Whiskies: ${whiskyCount}`);
     console.log(`   🏭 Distilleries: ${distilleryCount}`);
     console.log(`   📰 News/Events: ${eventCount}`);
+    console.log(`   ⚙️ Settings: ${settingsCount}`);
 
     // Seed database if empty
     if (whiskyCount === 0 || userCount === 0) {
@@ -55,12 +58,26 @@ const initializeDatabase = async () => {
       console.log('🏭 Distilleries already populated');
     }
 
+    // Initialize system settings if empty
+    if (settingsCount === 0) {
+      console.log('⚙️ System settings table is empty, initializing default settings...');
+      try {
+        await AdminController.initializeDefaultSettings();
+        console.log('✅ Default system settings initialized!');
+      } catch (error) {
+        console.error('❌ Failed to initialize system settings:', error.message);
+      }
+    } else {
+      console.log('⚙️ System settings already initialized');
+    }
+
     // Final data count
-    const [finalUserCount, finalWhiskyCount, finalDistilleryCount, finalEventCount] = await Promise.all([
+    const [finalUserCount, finalWhiskyCount, finalDistilleryCount, finalEventCount, finalSettingsCount] = await Promise.all([
       User.count(),
       Whisky.count(),
       Distillery.count(),
-      NewsEvent.count()
+      NewsEvent.count(),
+      SystemSetting.count()
     ]);
 
     console.log('🎉 Database initialization completed successfully!');
@@ -69,6 +86,7 @@ const initializeDatabase = async () => {
     console.log(`   🥃 Whiskies: ${finalWhiskyCount}`);
     console.log(`   🏭 Distilleries: ${finalDistilleryCount}`);
     console.log(`   📰 News/Events: ${finalEventCount}`);
+    console.log(`   ⚙️ Settings: ${finalSettingsCount}`);
 
     if (finalUserCount > 0 && finalWhiskyCount > 0) {
       console.log('✅ Database is ready for use!');
@@ -83,7 +101,8 @@ const initializeDatabase = async () => {
         users: finalUserCount,
         whiskies: finalWhiskyCount,
         distilleries: finalDistilleryCount,
-        events: finalEventCount
+        events: finalEventCount,
+        settings: finalSettingsCount
       }
     };
 

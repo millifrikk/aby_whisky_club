@@ -1,4 +1,4 @@
-const { User, Whisky, Rating, NewsEvent, EventRSVP } = require('../models');
+const { User, Whisky, Rating, NewsEvent, EventRSVP, SystemSetting } = require('../models');
 const { Op } = require('sequelize');
 
 class AdminController {
@@ -570,6 +570,761 @@ class AdminController {
         message: 'An error occurred while fetching system metrics'
       });
     }
+  }
+
+  // System Settings Management
+
+  // Get all system settings
+  static async getSystemSettings(req, res) {
+    try {
+      const { category } = req.query;
+
+      let where = {};
+      if (category && category !== 'all') {
+        where.category = category;
+      }
+
+      const settings = await SystemSetting.findAll({
+        where,
+        order: [['category', 'ASC'], ['key', 'ASC']]
+      });
+
+      // Group settings by category
+      const settingsByCategory = settings.reduce((acc, setting) => {
+        if (!acc[setting.category]) {
+          acc[setting.category] = [];
+        }
+        
+        acc[setting.category].push({
+          id: setting.id,
+          key: setting.key,
+          value: setting.getParsedValue(),
+          data_type: setting.data_type,
+          description: setting.description,
+          is_readonly: setting.is_readonly,
+          validation_rules: setting.validation_rules
+        });
+        
+        return acc;
+      }, {});
+
+      res.json({
+        settings_by_category: settingsByCategory,
+        total_count: settings.length
+      });
+
+    } catch (error) {
+      console.error('Get system settings error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch system settings',
+        message: 'An error occurred while fetching system settings'
+      });
+    }
+  }
+
+  // Update system setting
+  static async updateSystemSetting(req, res) {
+    try {
+      const { key } = req.params;
+      const { value } = req.body;
+
+      const setting = await SystemSetting.findOne({ where: { key } });
+
+      if (!setting) {
+        return res.status(404).json({
+          error: 'Setting not found',
+          message: 'The requested setting could not be found'
+        });
+      }
+
+      if (setting.is_readonly) {
+        return res.status(400).json({
+          error: 'Setting is read-only',
+          message: 'This setting cannot be modified through the interface'
+        });
+      }
+
+      // Validate value against validation rules if they exist
+      if (setting.validation_rules) {
+        const validation = this.validateSettingValue(value, setting.validation_rules, setting.data_type);
+        if (!validation.valid) {
+          return res.status(400).json({
+            error: 'Invalid value',
+            message: validation.message
+          });
+        }
+      }
+
+      setting.setParsedValue(value);
+      await setting.save();
+
+      res.json({
+        message: 'Setting updated successfully',
+        setting: {
+          key: setting.key,
+          value: setting.getParsedValue(),
+          data_type: setting.data_type
+        }
+      });
+
+    } catch (error) {
+      console.error('Update system setting error:', error);
+      res.status(500).json({
+        error: 'Failed to update setting',
+        message: 'An error occurred while updating the setting'
+      });
+    }
+  }
+
+  // Create new system setting
+  static async createSystemSetting(req, res) {
+    try {
+      const {
+        key,
+        value,
+        data_type = 'string',
+        category = 'general',
+        description,
+        is_public = false,
+        is_readonly = false,
+        validation_rules
+      } = req.body;
+
+      // Check if setting already exists
+      const existingSetting = await SystemSetting.findOne({ where: { key } });
+      if (existingSetting) {
+        return res.status(400).json({
+          error: 'Setting already exists',
+          message: 'A setting with this key already exists'
+        });
+      }
+
+      const setting = await SystemSetting.create({
+        key,
+        data_type,
+        category,
+        description,
+        is_public,
+        is_readonly,
+        validation_rules
+      });
+
+      setting.setParsedValue(value);
+      await setting.save();
+
+      res.status(201).json({
+        message: 'Setting created successfully',
+        setting: {
+          id: setting.id,
+          key: setting.key,
+          value: setting.getParsedValue(),
+          data_type: setting.data_type,
+          category: setting.category
+        }
+      });
+
+    } catch (error) {
+      console.error('Create system setting error:', error);
+      res.status(500).json({
+        error: 'Failed to create setting',
+        message: 'An error occurred while creating the setting'
+      });
+    }
+  }
+
+  // Delete system setting
+  static async deleteSystemSetting(req, res) {
+    try {
+      const { key } = req.params;
+
+      const setting = await SystemSetting.findOne({ where: { key } });
+
+      if (!setting) {
+        return res.status(404).json({
+          error: 'Setting not found',
+          message: 'The requested setting could not be found'
+        });
+      }
+
+      if (setting.is_readonly) {
+        return res.status(400).json({
+          error: 'Setting is read-only',
+          message: 'This setting cannot be deleted'
+        });
+      }
+
+      await setting.destroy();
+
+      res.json({
+        message: 'Setting deleted successfully',
+        key: setting.key
+      });
+
+    } catch (error) {
+      console.error('Delete system setting error:', error);
+      res.status(500).json({
+        error: 'Failed to delete setting',
+        message: 'An error occurred while deleting the setting'
+      });
+    }
+  }
+
+  // Initialize default system settings
+  static async initializeDefaultSettings() {
+    try {
+      const defaultSettings = [
+        // General settings
+        {
+          key: 'site_name',
+          value: 'Åby Whisky Club',
+          data_type: 'string',
+          category: 'general',
+          description: 'Name of the whisky club',
+          is_public: true
+        },
+        {
+          key: 'site_description',
+          value: 'A community for whisky enthusiasts',
+          data_type: 'string',
+          category: 'general',
+          description: 'Description of the whisky club',
+          is_public: true
+        },
+        {
+          key: 'allow_registration',
+          value: true,
+          data_type: 'boolean',
+          category: 'general',
+          description: 'Allow new user registrations',
+          is_public: false
+        },
+        {
+          key: 'require_email_verification',
+          value: false,
+          data_type: 'boolean',
+          category: 'general',
+          description: 'Require email verification for new accounts',
+          is_public: false
+        },
+
+        // Email settings
+        {
+          key: 'email_notifications_enabled',
+          value: false,
+          data_type: 'boolean',
+          category: 'email',
+          description: 'Enable email notifications',
+          is_public: false
+        },
+        {
+          key: 'admin_email',
+          value: 'admin@abywhiskyclub.com',
+          data_type: 'string',
+          category: 'email',
+          description: 'Administrator email address',
+          is_public: false
+        },
+
+        // Security settings
+        {
+          key: 'session_timeout',
+          value: 24,
+          data_type: 'number',
+          category: 'security',
+          description: 'Session timeout in hours',
+          is_public: false
+        },
+        {
+          key: 'max_login_attempts',
+          value: 5,
+          data_type: 'number',
+          category: 'security',
+          description: 'Maximum login attempts before lockout',
+          is_public: false
+        },
+
+        // Content settings
+        {
+          key: 'max_whiskies_per_page',
+          value: 20,
+          data_type: 'number',
+          category: 'content',
+          description: 'Maximum whiskies to display per page',
+          is_public: true
+        },
+        {
+          key: 'allow_guest_ratings',
+          value: false,
+          data_type: 'boolean',
+          category: 'content',
+          description: 'Allow guest users to view ratings',
+          is_public: true
+        }
+      ];
+
+      for (const settingData of defaultSettings) {
+        await SystemSetting.setSetting(
+          settingData.key,
+          settingData.value,
+          {
+            data_type: settingData.data_type,
+            category: settingData.category,
+            description: settingData.description,
+            is_public: settingData.is_public
+          }
+        );
+      }
+
+      console.log('✅ Default system settings initialized');
+    } catch (error) {
+      console.error('❌ Error initializing default settings:', error);
+    }
+  }
+
+  // Helper method to validate setting values
+  static validateSettingValue(value, validationRules, dataType) {
+    try {
+      // Basic type validation
+      switch (dataType) {
+        case 'boolean':
+          if (typeof value !== 'boolean') {
+            return { valid: false, message: 'Value must be a boolean' };
+          }
+          break;
+        case 'number':
+          if (typeof value !== 'number' || isNaN(value)) {
+            return { valid: false, message: 'Value must be a valid number' };
+          }
+          break;
+        case 'string':
+          if (typeof value !== 'string') {
+            return { valid: false, message: 'Value must be a string' };
+          }
+          break;
+      }
+
+      // Custom validation rules
+      if (validationRules) {
+        if (validationRules.min !== undefined && value < validationRules.min) {
+          return { valid: false, message: `Value must be at least ${validationRules.min}` };
+        }
+        if (validationRules.max !== undefined && value > validationRules.max) {
+          return { valid: false, message: `Value must be at most ${validationRules.max}` };
+        }
+        if (validationRules.minLength !== undefined && value.length < validationRules.minLength) {
+          return { valid: false, message: `Value must be at least ${validationRules.minLength} characters` };
+        }
+        if (validationRules.maxLength !== undefined && value.length > validationRules.maxLength) {
+          return { valid: false, message: `Value must be at most ${validationRules.maxLength} characters` };
+        }
+        if (validationRules.pattern && !new RegExp(validationRules.pattern).test(value)) {
+          return { valid: false, message: validationRules.patternMessage || 'Value does not match required pattern' };
+        }
+      }
+
+      return { valid: true };
+    } catch (error) {
+      return { valid: false, message: 'Validation error occurred' };
+    }
+  }
+
+  // Data Export/Import functionality
+
+  // Export data to CSV/JSON
+  static async exportData(req, res) {
+    try {
+      console.log('Export request received:', req.query);
+      
+      const { 
+        format = 'json', // 'json' or 'csv'
+        type = 'all', // 'whiskies', 'users', 'ratings', 'events', 'all'
+        include_deleted = false 
+      } = req.query;
+
+      console.log('Export params:', { format, type, include_deleted });
+
+      let exportData = {};
+
+      // Export whiskies
+      if (type === 'all' || type === 'whiskies') {
+        const whiskies = await Whisky.findAll({
+          include: [
+            {
+              model: Rating,
+              as: 'ratings',
+              include: [{
+                model: User,
+                as: 'user',
+                attributes: ['username', 'first_name', 'last_name']
+              }]
+            }
+          ],
+          ...(include_deleted === 'false' && { where: { is_available: true } })
+        });
+        exportData.whiskies = whiskies;
+      }
+
+      // Export users (exclude sensitive data)
+      if (type === 'all' || type === 'users') {
+        const users = await User.findAll({
+          attributes: { exclude: ['password_hash'] },
+          ...(include_deleted === 'false' && { where: { is_active: true } })
+        });
+        exportData.users = users;
+      }
+
+      // Export ratings
+      if (type === 'all' || type === 'ratings') {
+        const ratings = await Rating.findAll({
+          include: [
+            {
+              model: User,
+              as: 'user',
+              attributes: ['username', 'first_name', 'last_name']
+            },
+            {
+              model: Whisky,
+              as: 'whisky',
+              attributes: ['name', 'distillery']
+            }
+          ]
+        });
+        exportData.ratings = ratings;
+      }
+
+      // Export events
+      if (type === 'all' || type === 'events') {
+        const events = await NewsEvent.findAll({
+          include: [
+            {
+              model: User,
+              as: 'author',
+              attributes: ['username', 'first_name', 'last_name']
+            },
+            {
+              model: EventRSVP,
+              as: 'rsvps',
+              include: [{
+                model: User,
+                as: 'user',
+                attributes: ['username', 'first_name', 'last_name']
+              }]
+            }
+          ]
+        });
+        exportData.events = events;
+      }
+
+      // Format response based on requested format
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      
+      console.log('Export data collected:', Object.keys(exportData));
+
+      if (format === 'csv') {
+        // For CSV, we'll export each type separately
+        console.log('Converting to CSV format...');
+        const csvData = AdminController.convertToCSV(exportData, type);
+        console.log('CSV data length:', csvData.length);
+        
+        res.setHeader('Content-Type', 'text/csv');
+        res.setHeader('Content-Disposition', `attachment; filename="aby_whisky_club_${type}_${timestamp}.csv"`);
+        res.send(csvData);
+      } else {
+        // JSON format
+        console.log('Sending JSON format...');
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Content-Disposition', `attachment; filename="aby_whisky_club_${type}_${timestamp}.json"`);
+        res.json({
+          exported_at: new Date().toISOString(),
+          export_type: type,
+          format: format,
+          data: exportData
+        });
+      }
+
+    } catch (error) {
+      console.error('Export data error:', error);
+      console.error('Error stack:', error.stack);
+      res.status(500).json({
+        error: 'Failed to export data',
+        message: 'An error occurred while exporting data',
+        details: error.message
+      });
+    }
+  }
+
+  // Helper method to convert data to CSV format
+  static convertToCSV(data, type) {
+    const getNestedValue = (obj, path) => {
+      return path.split('.').reduce((current, key) => current && current[key], obj);
+    };
+
+    const convertArrayToCSV = (array, headers) => {
+      const csvHeaders = headers.join(',');
+      const csvRows = array.map(item => {
+        return headers.map(header => {
+          const value = getNestedValue(item, header);
+          return `"${String(value || '').replace(/"/g, '""')}"`;
+        }).join(',');
+      });
+      return [csvHeaders, ...csvRows].join('\n');
+    };
+
+    // Handle specific data types first
+    if (type === 'whiskies' && data.whiskies) {
+      const headers = ['id', 'name', 'distillery', 'region', 'age', 'abv', 'type', 'description', 'is_available'];
+      return convertArrayToCSV(data.whiskies, headers);
+    } else if (type === 'users' && data.users) {
+      const headers = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'created_at'];
+      return convertArrayToCSV(data.users, headers);
+    } else if (type === 'ratings' && data.ratings) {
+      const headers = ['id', 'user.username', 'whisky.name', 'overall_score', 'nose_score', 'taste_score', 'finish_score', 'review_text', 'created_at'];
+      return convertArrayToCSV(data.ratings, headers);
+    } else if (type === 'events' && data.events) {
+      const headers = ['id', 'title', 'type', 'content', 'event_date', 'location', 'max_attendees', 'is_published', 'author.username', 'created_at'];
+      return convertArrayToCSV(data.events, headers);
+    }
+
+    // For 'all' type, create a combined export with multiple sections
+    if (type === 'all') {
+      let csvSections = [];
+      
+      if (data.whiskies && data.whiskies.length > 0) {
+        const whiskyHeaders = ['id', 'name', 'distillery', 'region', 'age', 'abv', 'type', 'description', 'is_available'];
+        csvSections.push('WHISKIES');
+        csvSections.push(convertArrayToCSV(data.whiskies, whiskyHeaders));
+        csvSections.push(''); // Empty line
+      }
+      
+      if (data.users && data.users.length > 0) {
+        const userHeaders = ['id', 'username', 'email', 'first_name', 'last_name', 'role', 'is_active', 'created_at'];
+        csvSections.push('USERS');
+        csvSections.push(convertArrayToCSV(data.users, userHeaders));
+        csvSections.push(''); // Empty line
+      }
+      
+      if (data.ratings && data.ratings.length > 0) {
+        const ratingHeaders = ['id', 'user.username', 'whisky.name', 'overall_score', 'nose_score', 'taste_score', 'finish_score', 'review_text', 'created_at'];
+        csvSections.push('RATINGS');
+        csvSections.push(convertArrayToCSV(data.ratings, ratingHeaders));
+        csvSections.push(''); // Empty line
+      }
+      
+      if (data.events && data.events.length > 0) {
+        const eventHeaders = ['id', 'title', 'type', 'content', 'event_date', 'location', 'max_attendees', 'is_published', 'author.username', 'created_at'];
+        csvSections.push('EVENTS');
+        csvSections.push(convertArrayToCSV(data.events, eventHeaders));
+      }
+      
+      return csvSections.join('\n');
+    }
+    
+    return 'No data available for CSV export';
+  }
+
+  // Helper method to get nested object values
+  static getNestedValue(obj, path) {
+    return path.split('.').reduce((current, key) => current && current[key], obj);
+  }
+
+  // Data Import functionality
+  static async importData(req, res) {
+    try {
+      const { type, data, options = {} } = req.body;
+      const { overwrite = false, validate = true } = options;
+
+      if (!type || !data || !Array.isArray(data)) {
+        return res.status(400).json({
+          error: 'Invalid import data',
+          message: 'Type and data array are required'
+        });
+      }
+
+      let importResults = {
+        total: data.length,
+        success: 0,
+        errors: 0,
+        warnings: [],
+        imported_items: []
+      };
+
+      switch (type) {
+        case 'whiskies':
+          importResults = await this.importWhiskies(data, { overwrite, validate });
+          break;
+        case 'users':
+          importResults = await this.importUsers(data, { overwrite, validate });
+          break;
+        default:
+          return res.status(400).json({
+            error: 'Unsupported import type',
+            message: 'Supported types: whiskies, users'
+          });
+      }
+
+      const statusCode = importResults.errors > 0 ? 207 : 200; // 207 Multi-Status for partial success
+
+      res.status(statusCode).json({
+        message: `Import completed: ${importResults.success} successful, ${importResults.errors} failed`,
+        results: importResults
+      });
+
+    } catch (error) {
+      console.error('Import data error:', error);
+      res.status(500).json({
+        error: 'Failed to import data',
+        message: 'An error occurred while importing data'
+      });
+    }
+  }
+
+  // Import whiskies from data array
+  static async importWhiskies(data, options = {}) {
+    const { overwrite = false, validate = true } = options;
+    const results = {
+      total: data.length,
+      success: 0,
+      errors: 0,
+      warnings: [],
+      imported_items: []
+    };
+
+    for (const item of data) {
+      try {
+        // Basic validation
+        if (validate) {
+          if (!item.name || !item.distillery) {
+            results.errors++;
+            results.warnings.push(`Skipped item: Missing required fields (name, distillery)`);
+            continue;
+          }
+        }
+
+        // Check if whisky already exists
+        const existingWhisky = await Whisky.findOne({
+          where: {
+            name: item.name,
+            distillery: item.distillery
+          }
+        });
+
+        if (existingWhisky && !overwrite) {
+          results.warnings.push(`Skipped ${item.name}: Already exists`);
+          continue;
+        }
+
+        const whiskyData = {
+          name: item.name,
+          distillery: item.distillery,
+          region: item.region || null,
+          age: item.age ? parseInt(item.age) : null,
+          abv: item.abv ? parseFloat(item.abv) : null,
+          type: item.type || 'single_malt',
+          description: item.description || null,
+          image_url: item.image_url || null,
+          is_available: item.is_available !== undefined ? Boolean(item.is_available) : true
+        };
+
+        let whisky;
+        if (existingWhisky && overwrite) {
+          whisky = await existingWhisky.update(whiskyData);
+        } else {
+          whisky = await Whisky.create(whiskyData);
+        }
+
+        results.success++;
+        results.imported_items.push({
+          id: whisky.id,
+          name: whisky.name,
+          action: existingWhisky ? 'updated' : 'created'
+        });
+
+      } catch (error) {
+        results.errors++;
+        results.warnings.push(`Error importing ${item.name || 'unknown'}: ${error.message}`);
+      }
+    }
+
+    return results;
+  }
+
+  // Import users from data array
+  static async importUsers(data, options = {}) {
+    const { overwrite = false, validate = true } = options;
+    const results = {
+      total: data.length,
+      success: 0,
+      errors: 0,
+      warnings: [],
+      imported_items: []
+    };
+
+    for (const item of data) {
+      try {
+        // Basic validation
+        if (validate) {
+          if (!item.username || !item.email) {
+            results.errors++;
+            results.warnings.push(`Skipped item: Missing required fields (username, email)`);
+            continue;
+          }
+        }
+
+        // Check if user already exists
+        const existingUser = await User.findOne({
+          where: {
+            [Op.or]: [
+              { username: item.username },
+              { email: item.email }
+            ]
+          }
+        });
+
+        if (existingUser && !overwrite) {
+          results.warnings.push(`Skipped ${item.username}: User already exists`);
+          continue;
+        }
+
+        // For security, we don't import passwords - users will need to reset
+        const userData = {
+          username: item.username,
+          email: item.email,
+          first_name: item.first_name || null,
+          last_name: item.last_name || null,
+          role: item.role === 'admin' ? 'admin' : 'member', // Default to member for security
+          is_active: item.is_active !== undefined ? Boolean(item.is_active) : true,
+          password_hash: existingUser ? existingUser.password_hash : 'IMPORT_TEMP_PASSWORD' // Temp placeholder
+        };
+
+        let user;
+        if (existingUser && overwrite) {
+          // Don't overwrite password or sensitive fields
+          delete userData.password_hash;
+          user = await existingUser.update(userData);
+        } else if (!existingUser) {
+          user = await User.create(userData);
+        }
+
+        if (user) {
+          results.success++;
+          results.imported_items.push({
+            id: user.id,
+            username: user.username,
+            action: existingUser ? 'updated' : 'created'
+          });
+
+          if (!existingUser) {
+            results.warnings.push(`User ${item.username} imported - password reset required`);
+          }
+        }
+
+      } catch (error) {
+        results.errors++;
+        results.warnings.push(`Error importing ${item.username || 'unknown'}: ${error.message}`);
+      }
+    }
+
+    return results;
   }
 }
 

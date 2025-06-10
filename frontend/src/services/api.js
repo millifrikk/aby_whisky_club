@@ -94,6 +94,15 @@ export const adminAPI = {
   getSystemMetrics: () => api.get('/admin/metrics'),
   getContentForModeration: (params) => api.get('/admin/content/moderation', { params }),
   moderateContent: (contentType, contentId, data) => api.post(`/admin/content/${contentType}/${contentId}/moderate`, data),
+  
+  // System Settings
+  getSystemSettings: (params) => api.get('/admin/settings', { params }),
+  updateSystemSetting: (key, data) => api.put(`/admin/settings/${key}`, data),
+  createSystemSetting: (data) => api.post('/admin/settings', data),
+  deleteSystemSetting: (key) => api.delete(`/admin/settings/${key}`),
+  
+  // Data Export
+  exportData: (params) => api.get('/admin/export', { params }),
 };
 
 // Health check
