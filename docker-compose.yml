@@ -1,0 +1,78 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15
+    container_name: aby_whisky_db
+    environment:
+      POSTGRES_DB: aby_whisky_club
+      POSTGRES_USER: whisky_admin
+      POSTGRES_PASSWORD: secure_password_123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/migrations:/docker-entrypoint-initdb.d
+    networks:
+      - whisky_network
+
+  # Redis for Session Management
+  redis:
+    image: redis:7-alpine
+    container_name: aby_whisky_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - whisky_network
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: aby_whisky_backend
+    environment:
+      NODE_ENV: development
+      DATABASE_URL: postgresql://whisky_admin:secure_password_123@postgres:5432/aby_whisky_club
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: your-super-secret-jwt-key-change-in-production
+      PORT: 3001
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - whisky_network
+    command: npm run dev
+
+  # Frontend React App
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: aby_whisky_frontend
+    environment:
+      VITE_API_URL: http://localhost:3001/api
+      REACT_APP_API_URL: http://localhost:3001/api
+      REACT_APP_ENV: development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    networks:
+      - whisky_network
+    command: npm run dev
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  whisky_network:
+    driver: bridge
