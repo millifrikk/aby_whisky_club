@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const distilleryController = require('../controllers/distilleryController');
 const auth = require('../middleware/auth');
+const { handleValidationErrors } = require('../middleware/validation');
 
 const router = express.Router();
 
@@ -36,19 +37,40 @@ const distilleryValidation = [
     .withMessage('Description must be less than 5000 characters'),
   
   body('founded_year')
-    .optional()
-    .isInt({ min: 1700, max: new Date().getFullYear() })
-    .withMessage(`Founded year must be between 1700 and ${new Date().getFullYear()}`),
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (!value || value === '' || value === null) return true;
+      const year = parseInt(value);
+      if (isNaN(year)) throw new Error('Founded year must be a number');
+      if (year < 1700 || year > new Date().getFullYear()) {
+        throw new Error(`Founded year must be between 1700 and ${new Date().getFullYear()}`);
+      }
+      return true;
+    }),
   
   body('website')
     .optional()
-    .isURL()
-    .withMessage('Website must be a valid URL'),
+    .custom((value) => {
+      if (!value || value.trim() === '') return true;
+      try {
+        new URL(value);
+        return true;
+      } catch (error) {
+        throw new Error('Website must be a valid URL');
+      }
+    }),
   
   body('image_url')
     .optional()
-    .isURL()
-    .withMessage('Image URL must be a valid URL'),
+    .custom((value) => {
+      if (!value || value.trim() === '') return true;
+      try {
+        new URL(value);
+        return true;
+      } catch (error) {
+        throw new Error('Image URL must be a valid URL');
+      }
+    }),
   
   body('location.latitude')
     .optional()
@@ -69,7 +91,9 @@ const distilleryValidation = [
   body('is_active')
     .optional()
     .isBoolean()
-    .withMessage('is_active must be a boolean')
+    .withMessage('is_active must be a boolean'),
+  
+  handleValidationErrors
 ];
 
 const updateDistilleryValidation = [
@@ -105,19 +129,40 @@ const updateDistilleryValidation = [
     .withMessage('Description must be less than 5000 characters'),
   
   body('founded_year')
-    .optional()
-    .isInt({ min: 1700, max: new Date().getFullYear() })
-    .withMessage(`Founded year must be between 1700 and ${new Date().getFullYear()}`),
+    .optional({ nullable: true })
+    .custom((value) => {
+      if (!value || value === '' || value === null) return true;
+      const year = parseInt(value);
+      if (isNaN(year)) throw new Error('Founded year must be a number');
+      if (year < 1700 || year > new Date().getFullYear()) {
+        throw new Error(`Founded year must be between 1700 and ${new Date().getFullYear()}`);
+      }
+      return true;
+    }),
   
   body('website')
     .optional()
-    .isURL()
-    .withMessage('Website must be a valid URL'),
+    .custom((value) => {
+      if (!value || value.trim() === '') return true;
+      try {
+        new URL(value);
+        return true;
+      } catch (error) {
+        throw new Error('Website must be a valid URL');
+      }
+    }),
   
   body('image_url')
     .optional()
-    .isURL()
-    .withMessage('Image URL must be a valid URL'),
+    .custom((value) => {
+      if (!value || value.trim() === '') return true;
+      try {
+        new URL(value);
+        return true;
+      } catch (error) {
+        throw new Error('Image URL must be a valid URL');
+      }
+    }),
   
   body('location.latitude')
     .optional()
@@ -138,11 +183,14 @@ const updateDistilleryValidation = [
   body('is_active')
     .optional()
     .isBoolean()
-    .withMessage('is_active must be a boolean')
+    .withMessage('is_active must be a boolean'),
+  
+  handleValidationErrors
 ];
 
 // Public routes
 router.get('/', distilleryController.getAllDistilleries);
+router.get('/search', distilleryController.searchDistilleries);
 router.get('/stats', distilleryController.getDistilleryStats);
 router.get('/:id', distilleryController.getDistillery);
 

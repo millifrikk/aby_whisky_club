@@ -110,10 +110,16 @@ const Distillery = sequelize.define('Distillery', {
 // Instance methods
 Distillery.prototype.updateWhiskyCount = async function() {
   const Whisky = require('./Whisky');
+  const { Op } = require('sequelize');
   
-  // Use distillery name instead of foreign key since column doesn't exist
+  // Count whiskies using both foreign key and text field for backward compatibility
   const count = await Whisky.count({
-    where: { distillery: this.name }
+    where: {
+      [Op.or]: [
+        { distillery_id: this.id },
+        { distillery: this.name }
+      ]
+    }
   });
 
   this.whisky_count = count;
@@ -122,12 +128,11 @@ Distillery.prototype.updateWhiskyCount = async function() {
 
 // Class methods
 Distillery.associate = function(models) {
-  // Association disabled - no foreign key column exists
-  // Whiskies use 'distillery' text field instead of distillery_id foreign key
-  // Distillery.hasMany(models.Whisky, {
-  //   foreignKey: 'distillery_id',
-  //   as: 'whiskies'
-  // });
+  // Association with whiskies
+  Distillery.hasMany(models.Whisky, {
+    foreignKey: 'distillery_id',
+    as: 'whiskies'
+  });
 };
 
 // Static methods

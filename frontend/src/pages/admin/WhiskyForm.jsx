@@ -3,6 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { whiskyAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import DistillerySelector from '../../components/common/DistillerySelector';
+import NewDistilleryModal from '../../components/common/NewDistilleryModal';
 import toast from 'react-hot-toast';
 
 const WhiskyForm = () => {
@@ -11,6 +13,9 @@ const WhiskyForm = () => {
   const { isAdmin } = useAuth();
   const [loading, setLoading] = useState(false);
   const [whisky, setWhisky] = useState(null);
+  const [showNewDistilleryModal, setShowNewDistilleryModal] = useState(false);
+  const [newDistilleryName, setNewDistilleryName] = useState('');
+  const [selectedDistillery, setSelectedDistillery] = useState(null);
   const isEdit = Boolean(id);
 
   const {
@@ -24,6 +29,7 @@ const WhiskyForm = () => {
     defaultValues: {
       name: '',
       distillery: '',
+      distillery_id: null,
       region: '',
       country: 'Scotland',
       age: '',
@@ -78,6 +84,17 @@ const WhiskyForm = () => {
           setValue(key, whiskyData[key] || '');
         }
       });
+
+      // Set selected distillery if available
+      if (whiskyData.distilleryInfo) {
+        setSelectedDistillery(whiskyData.distilleryInfo);
+      } else if (whiskyData.distillery) {
+        // For backward compatibility, create a pseudo-distillery object
+        setSelectedDistillery({
+          name: whiskyData.distillery,
+          id: whiskyData.distillery_id
+        });
+      }
     } catch (error) {
       console.error('Error loading whisky:', error);
       toast.error('Failed to load whisky details');
@@ -101,6 +118,10 @@ const WhiskyForm = () => {
         quantity: parseInt(data.quantity) || 1,
         bottle_size: parseInt(data.bottle_size) || 700,
         purchase_date: data.purchase_date || null,
+        distillery_id: selectedDistillery?.id || null,
+        // Properly handle boolean fields
+        is_available: Boolean(data.is_available),
+        is_featured: Boolean(data.is_featured),
       };
 
       if (isEdit) {
@@ -119,6 +140,93 @@ const WhiskyForm = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDistilleryChange = (name, distilleryId, distillery) => {
+    setValue('distillery', name);
+    setValue('distillery_id', distilleryId);
+    setSelectedDistillery(distillery);
+    
+    // Auto-populate region and country if distillery has this data
+    if (distillery && typeof distillery === 'object') {
+      const currentRegion = watch('region');
+      const currentCountry = watch('country');
+      
+      // Auto-populate region if distillery has region data and:
+      // - Field is empty, OR
+      // - Field has default value, OR  
+      // - Current region doesn't match the distillery's country (e.g., Speyside for US distillery)
+      if (distillery.region) {
+        const shouldPopulateRegion = !currentRegion || 
+                                   currentRegion === '' || 
+                                   currentRegion === 'Select Region' ||
+                                   (distillery.country === 'United States' && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands'].includes(currentRegion)) ||
+                                   (distillery.country === 'Scotland' && ['Kentucky', 'Tennessee'].includes(currentRegion)) ||
+                                   (distillery.country === 'Japan' && !['Osaka'].includes(currentRegion) && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands', 'Kentucky', 'Tennessee'].includes(currentRegion));
+        
+        if (shouldPopulateRegion) {
+          setValue('region', distillery.region);
+        }
+      }
+      
+      // Auto-populate country if distillery has country data and:
+      // - Field is empty, OR
+      // - Field has default value (Scotland), OR
+      // - Field doesn't match the distillery's country
+      if (distillery.country) {
+        const shouldPopulateCountry = !currentCountry || 
+                                    currentCountry === '' || 
+                                    currentCountry === 'Scotland' ||
+                                    currentCountry !== distillery.country;
+        
+        if (shouldPopulateCountry) {
+          setValue('country', distillery.country);
+        }
+      }
+    }
+  };
+
+  const handleNewDistilleryRequest = (name) => {
+    setNewDistilleryName(name);
+    setShowNewDistilleryModal(true);
+  };
+
+  const handleNewDistilleryCreated = (newDistillery) => {
+    // Update form with the new distillery
+    setValue('distillery', newDistillery.name);
+    setValue('distillery_id', newDistillery.id);
+    setSelectedDistillery(newDistillery);
+    
+    // Auto-populate region and country from newly created distillery
+    const currentRegion = watch('region');
+    const currentCountry = watch('country');
+    
+    // Use the same enhanced logic as handleDistilleryChange
+    if (newDistillery.region) {
+      const shouldPopulateRegion = !currentRegion || 
+                                 currentRegion === '' || 
+                                 currentRegion === 'Select Region' ||
+                                 (newDistillery.country === 'United States' && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands'].includes(currentRegion)) ||
+                                 (newDistillery.country === 'Scotland' && ['Kentucky', 'Tennessee'].includes(currentRegion)) ||
+                                 (newDistillery.country === 'Japan' && !['Osaka'].includes(currentRegion) && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands', 'Kentucky', 'Tennessee'].includes(currentRegion));
+      
+      if (shouldPopulateRegion) {
+        setValue('region', newDistillery.region);
+      }
+    }
+    
+    if (newDistillery.country) {
+      const shouldPopulateCountry = !currentCountry || 
+                                  currentCountry === '' || 
+                                  currentCountry === 'Scotland' ||
+                                  currentCountry !== newDistillery.country;
+      
+      if (shouldPopulateCountry) {
+        setValue('country', newDistillery.country);
+      }
+    }
+    
+    toast.success(`Distillery "${newDistillery.name}" created and selected!`);
   };
 
   if (!isAdmin()) {
@@ -171,18 +279,18 @@ const WhiskyForm = () => {
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Distillery *
-              </label>
+              <DistillerySelector
+                value={selectedDistillery || watch('distillery')}
+                onChange={handleDistilleryChange}
+                error={errors.distillery?.message}
+                required={true}
+                onNewDistilleryRequest={handleNewDistilleryRequest}
+              />
+              {/* Hidden field to register distillery value with react-hook-form */}
               <input
                 {...register('distillery', { required: 'Distillery is required' })}
-                type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500"
-                placeholder="e.g., The Macallan"
+                type="hidden"
               />
-              {errors.distillery && (
-                <p className="mt-1 text-sm text-red-600">{errors.distillery.message}</p>
-              )}
             </div>
 
             <div>
@@ -521,6 +629,14 @@ const WhiskyForm = () => {
           </button>
         </div>
       </form>
+
+      {/* New Distillery Modal */}
+      <NewDistilleryModal
+        isOpen={showNewDistilleryModal}
+        onClose={() => setShowNewDistilleryModal(false)}
+        onDistilleryCreated={handleNewDistilleryCreated}
+        defaultName={newDistilleryName}
+      />
     </div>
   );
 };

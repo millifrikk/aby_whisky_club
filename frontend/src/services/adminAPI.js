@@ -1,4 +1,4 @@
-import { api } from './api';
+import api from './api';
 
 export const adminAPI = {
   // Dashboard statistics
@@ -26,6 +26,17 @@ export const adminAPI = {
 
   getSystemMetrics: async () => {
     const response = await api.get('/admin/metrics');
+    return response.data;
+  },
+
+  // Distillery management
+  searchDistilleries: async (params = {}) => {
+    const response = await api.get('/distilleries/search', { params });
+    return response.data;
+  },
+
+  createDistillery: async (distilleryData) => {
+    const response = await api.post('/distilleries', distilleryData);
     return response.data;
   }
 };

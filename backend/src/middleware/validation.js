@@ -83,12 +83,12 @@ const validateWhiskyCreation = [
     .withMessage('Region must be less than 100 characters'),
     
   body('age')
-    .optional()
+    .optional({ nullable: true })
     .isInt({ min: 0, max: 100 })
     .withMessage('Age must be between 0 and 100 years'),
     
   body('abv')
-    .optional()
+    .optional({ nullable: true })
     .isFloat({ min: 0, max: 100 })
     .withMessage('ABV must be between 0 and 100'),
     
@@ -97,12 +97,12 @@ const validateWhiskyCreation = [
     .withMessage('Invalid whisky type'),
     
   body('quantity')
-    .optional()
+    .optional({ nullable: true })
     .isInt({ min: 0 })
     .withMessage('Quantity must be a non-negative integer'),
     
   body('purchase_price')
-    .optional()
+    .optional({ nullable: true })
     .isFloat({ min: 0 })
     .withMessage('Purchase price must be non-negative'),
     

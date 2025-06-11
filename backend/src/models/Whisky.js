@@ -14,14 +14,14 @@ const Whisky = sequelize.define('Whisky', {
       len: [1, 255]
     }
   },
-  // distillery_id: {
-  //   type: DataTypes.UUID,
-  //   allowNull: true,
-  //   references: {
-  //     model: 'distilleries',
-  //     key: 'id'
-  //   }
-  // },
+  distillery_id: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'distilleries',
+      key: 'id'
+    }
+  },
   distillery: {
     type: DataTypes.STRING(255),
     allowNull: true,
@@ -202,11 +202,11 @@ Whisky.associate = function(models) {
     as: 'ratings'
   });
   
-  // Distillery association disabled - no foreign key column exists
-  // Whisky.belongsTo(models.Distillery, {
-  //   foreignKey: 'distillery_id',
-  //   as: 'distilleryInfo'
-  // });
+  // Distillery association
+  Whisky.belongsTo(models.Distillery, {
+    foreignKey: 'distillery_id',
+    as: 'distilleryInfo'
+  });
 };
 
 module.exports = Whisky;

@@ -67,7 +67,13 @@ class WhiskyController {
         where,
         order: [['name', 'ASC']], // Use simple, known column
         limit: parseInt(limit),
-        offset
+        offset,
+        include: [{
+          model: Distillery,
+          as: 'distilleryInfo',
+          required: false,
+          attributes: ['id', 'name', 'country', 'region', 'slug']
+        }]
       });
 
       const totalPages = Math.ceil(count / parseInt(limit));
@@ -122,13 +128,13 @@ class WhiskyController {
               }
             ],
             order: [['created_at', 'DESC']]
+          },
+          {
+            model: Distillery,
+            as: 'distilleryInfo',
+            required: false,
+            attributes: ['id', 'name', 'slug', 'country', 'region', 'description', 'founded_year', 'website', 'image_url']
           }
-          // Distillery association disabled - no foreign key column exists
-          // {
-          //   model: Distillery,
-          //   as: 'distilleryInfo',
-          //   attributes: ['id', 'name', 'slug', 'country', 'region', 'description', 'founded_year', 'website', 'image_url']
-          // }
         ]
       });
 
@@ -155,11 +161,42 @@ class WhiskyController {
     try {
       const whiskyData = req.body;
 
+      // Clean up data types for database
+      if (whiskyData.age !== undefined) whiskyData.age = whiskyData.age ? parseInt(whiskyData.age) : null;
+      if (whiskyData.abv !== undefined) whiskyData.abv = whiskyData.abv ? parseFloat(whiskyData.abv) : null;
+      if (whiskyData.purchase_price !== undefined) whiskyData.purchase_price = whiskyData.purchase_price ? parseFloat(whiskyData.purchase_price) : null;
+      if (whiskyData.current_price !== undefined) whiskyData.current_price = whiskyData.current_price ? parseFloat(whiskyData.current_price) : null;
+      if (whiskyData.quantity !== undefined) whiskyData.quantity = whiskyData.quantity ? parseInt(whiskyData.quantity) : 1;
+      if (whiskyData.bottle_size !== undefined) whiskyData.bottle_size = whiskyData.bottle_size ? parseInt(whiskyData.bottle_size) : 700;
+      if (whiskyData.is_available !== undefined) whiskyData.is_available = Boolean(whiskyData.is_available);
+      if (whiskyData.is_featured !== undefined) whiskyData.is_featured = Boolean(whiskyData.is_featured);
+
+      // Remove calculated fields that should not be directly updated
+      delete whiskyData.rating_average;
+      delete whiskyData.rating_count;
+
+      // If distillery_id is provided, auto-populate distillery text field from the relationship
+      if (whiskyData.distillery_id && !whiskyData.distillery) {
+        const distillery = await Distillery.findByPk(whiskyData.distillery_id);
+        if (distillery) {
+          whiskyData.distillery = distillery.name;
+        }
+      }
+
       const whisky = await Whisky.create(whiskyData);
+
+      // Fetch the created whisky with distillery information
+      const createdWhisky = await Whisky.findByPk(whisky.id, {
+        include: [{
+          model: Distillery,
+          as: 'distilleryInfo',
+          required: false
+        }]
+      });
 
       res.status(201).json({
         message: 'Whisky created successfully',
-        whisky
+        whisky: createdWhisky
       });
 
     } catch (error) {
@@ -197,7 +234,38 @@ class WhiskyController {
         });
       }
 
-      const updatedWhisky = await whisky.update(updateData);
+      // Clean up data types for database
+      if (updateData.age !== undefined) updateData.age = updateData.age ? parseInt(updateData.age) : null;
+      if (updateData.abv !== undefined) updateData.abv = updateData.abv ? parseFloat(updateData.abv) : null;
+      if (updateData.purchase_price !== undefined) updateData.purchase_price = updateData.purchase_price ? parseFloat(updateData.purchase_price) : null;
+      if (updateData.current_price !== undefined) updateData.current_price = updateData.current_price ? parseFloat(updateData.current_price) : null;
+      if (updateData.quantity !== undefined) updateData.quantity = updateData.quantity ? parseInt(updateData.quantity) : 1;
+      if (updateData.bottle_size !== undefined) updateData.bottle_size = updateData.bottle_size ? parseInt(updateData.bottle_size) : 700;
+      if (updateData.is_available !== undefined) updateData.is_available = Boolean(updateData.is_available);
+      if (updateData.is_featured !== undefined) updateData.is_featured = Boolean(updateData.is_featured);
+
+      // Remove calculated fields that should not be directly updated
+      delete updateData.rating_average;
+      delete updateData.rating_count;
+
+      // If distillery_id is provided and changed, auto-populate distillery text field
+      if (updateData.distillery_id && updateData.distillery_id !== whisky.distillery_id) {
+        const distillery = await Distillery.findByPk(updateData.distillery_id);
+        if (distillery) {
+          updateData.distillery = distillery.name;
+        }
+      }
+
+      await whisky.update(updateData);
+
+      // Fetch the updated whisky with distillery information
+      const updatedWhisky = await Whisky.findByPk(id, {
+        include: [{
+          model: Distillery,
+          as: 'distilleryInfo',
+          required: false
+        }]
+      });
 
       res.json({
         message: 'Whisky updated successfully',

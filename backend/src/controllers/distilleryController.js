@@ -354,6 +354,60 @@ const updateWhiskyCounts = async (req, res) => {
   }
 };
 
+// Search distilleries for autocomplete (optimized for whisky form)
+const searchDistilleries = async (req, res) => {
+  try {
+    const { 
+      search = '', 
+      limit = 10 
+    } = req.query;
+
+    if (!search || search.trim().length < 2) {
+      return res.json({
+        success: true,
+        data: {
+          distilleries: []
+        }
+      });
+    }
+
+    const searchTerm = search.trim();
+    
+    const distilleries = await Distillery.findAll({
+      where: {
+        [Op.and]: [
+          { is_active: true },
+          {
+            [Op.or]: [
+              { name: { [Op.iLike]: `%${searchTerm}%` } },
+              { slug: { [Op.iLike]: `%${searchTerm}%` } }
+            ]
+          }
+        ]
+      },
+      attributes: ['id', 'name', 'country', 'region', 'slug'],
+      order: [
+        ['name', 'ASC']
+      ],
+      limit: parseInt(limit)
+    });
+
+    res.json({
+      success: true,
+      data: {
+        distilleries
+      }
+    });
+  } catch (error) {
+    console.error('Error searching distilleries:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error searching distilleries',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+    });
+  }
+};
+
 module.exports = {
   getAllDistilleries,
   getDistillery,
@@ -362,5 +416,6 @@ module.exports = {
   deleteDistillery,
   getDistilleryStats,
   populateFromAPI,
-  updateWhiskyCounts
+  updateWhiskyCounts,
+  searchDistilleries
 };
