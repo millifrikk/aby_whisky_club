@@ -68,6 +68,11 @@ router.post('/settings', AdminController.createSystemSetting);
 // @access  Private (Admin only)
 router.delete('/settings/:key', AdminController.deleteSystemSetting);
 
+// @route   POST /api/admin/settings/initialize
+// @desc    Initialize default system settings
+// @access  Private (Admin only)
+router.post('/settings/initialize', AdminController.initializeDefaultSettings);
+
 // Data Export/Import Routes
 
 // @route   GET /api/admin/export

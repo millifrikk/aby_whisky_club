@@ -769,8 +769,25 @@ class AdminController {
     }
   }
 
-  // Initialize default system settings
-  static async initializeDefaultSettings() {
+  // Initialize default system settings (route handler)
+  static async initializeDefaultSettings(req, res) {
+    try {
+      await AdminController.runDefaultSettingsInitialization();
+      res.json({
+        message: 'Default system settings initialized successfully',
+        status: 'success'
+      });
+    } catch (error) {
+      console.error('Error initializing default settings:', error);
+      res.status(500).json({
+        error: 'Failed to initialize settings',
+        message: 'An error occurred while initializing default settings'
+      });
+    }
+  }
+
+  // Initialize default system settings (utility method)
+  static async runDefaultSettingsInitialization() {
     try {
       const defaultSettings = [
         // General settings
@@ -859,6 +876,580 @@ class AdminController {
           category: 'content',
           description: 'Allow guest users to view ratings',
           is_public: true
+        },
+        {
+          key: 'default_whisky_image',
+          value: '/images/aby_whisky_club_header01.png',
+          data_type: 'string',
+          category: 'content',
+          description: 'Default image URL for whiskies without images',
+          is_public: true,
+          validation_rules: {
+            pattern: '^(https?://|/)',
+            patternMessage: 'Must be a valid URL or relative path starting with /'
+          }
+        },
+
+        // Phase 10: Appearance & Branding Settings
+        {
+          key: 'site_logo_url',
+          value: '',
+          data_type: 'string',
+          category: 'appearance',
+          description: 'Club logo URL for navigation header',
+          is_public: true,
+          validation_rules: {
+            pattern: '^(https?://|/|$)',
+            patternMessage: 'Must be a valid URL or relative path starting with /'
+          }
+        },
+        {
+          key: 'site_favicon_url',
+          value: '',
+          data_type: 'string',
+          category: 'appearance',
+          description: 'Custom favicon URL for browser tabs',
+          is_public: true,
+          validation_rules: {
+            pattern: '^(https?://|/|$)',
+            patternMessage: 'Must be a valid URL or relative path starting with /'
+          }
+        },
+        {
+          key: 'primary_color',
+          value: '#d97706',
+          data_type: 'string',
+          category: 'appearance',
+          description: 'Primary brand color (hex code)',
+          is_public: true,
+          validation_rules: {
+            pattern: '^#[0-9A-Fa-f]{6}$',
+            patternMessage: 'Must be a valid hex color code (e.g., #d97706)'
+          }
+        },
+        {
+          key: 'secondary_color',
+          value: '#f59e0b',
+          data_type: 'string',
+          category: 'appearance',
+          description: 'Secondary brand color (hex code)',
+          is_public: true,
+          validation_rules: {
+            pattern: '^#[0-9A-Fa-f]{6}$',
+            patternMessage: 'Must be a valid hex color code (e.g., #f59e0b)'
+          }
+        },
+        {
+          key: 'hero_background_image',
+          value: '',
+          data_type: 'string',
+          category: 'appearance',
+          description: 'Homepage hero section background image URL',
+          is_public: true,
+          validation_rules: {
+            pattern: '^(https?://|/|$)',
+            patternMessage: 'Must be a valid URL or relative path starting with /'
+          }
+        },
+        {
+          key: 'club_motto',
+          value: 'Discover exceptional whiskies together',
+          data_type: 'string',
+          category: 'appearance',
+          description: 'Club tagline displayed on homepage',
+          is_public: true,
+          validation_rules: {
+            maxLength: 200,
+            maxLengthMessage: 'Motto cannot exceed 200 characters'
+          }
+        },
+        {
+          key: 'footer_text',
+          value: '© 2025 Åby Whisky Club. All rights reserved.',
+          data_type: 'string',
+          category: 'appearance',
+          description: 'Custom footer content and copyright',
+          is_public: true,
+          validation_rules: {
+            maxLength: 500,
+            maxLengthMessage: 'Footer text cannot exceed 500 characters'
+          }
+        },
+
+        // Email & Notification Settings
+        {
+          key: 'smtp_host',
+          value: '',
+          data_type: 'string',
+          category: 'email',
+          description: 'SMTP server hostname',
+          is_public: false
+        },
+        {
+          key: 'smtp_port',
+          value: 587,
+          data_type: 'number',
+          category: 'email',
+          description: 'SMTP server port',
+          is_public: false,
+          validation_rules: {
+            min: 1,
+            max: 65535,
+            minMessage: 'Port must be between 1 and 65535'
+          }
+        },
+        {
+          key: 'smtp_username',
+          value: '',
+          data_type: 'string',
+          category: 'email',
+          description: 'SMTP authentication username',
+          is_public: false
+        },
+        {
+          key: 'smtp_password',
+          value: '',
+          data_type: 'string',
+          category: 'email',
+          description: 'SMTP authentication password',
+          is_public: false
+        },
+        {
+          key: 'welcome_email_template',
+          value: 'Welcome to Åby Whisky Club! We\'re excited to have you join our community of whisky enthusiasts.',
+          data_type: 'string',
+          category: 'email',
+          description: 'Custom welcome message for new members',
+          is_public: false,
+          validation_rules: {
+            maxLength: 1000,
+            maxLengthMessage: 'Welcome email template cannot exceed 1000 characters'
+          }
+        },
+        {
+          key: 'event_reminder_days',
+          value: 3,
+          data_type: 'number',
+          category: 'email',
+          description: 'Days before events to send reminders',
+          is_public: false,
+          validation_rules: {
+            min: 1,
+            max: 30,
+            minMessage: 'Must be between 1 and 30 days'
+          }
+        },
+        {
+          key: 'rating_notification_enabled',
+          value: true,
+          data_type: 'boolean',
+          category: 'email',
+          description: 'Notify users when someone rates their whisky',
+          is_public: false
+        },
+        {
+          key: 'weekly_digest_enabled',
+          value: false,
+          data_type: 'boolean',
+          category: 'email',
+          description: 'Send weekly summary emails to members',
+          is_public: false
+        },
+        {
+          key: 'email_signature',
+          value: 'Best regards,\nÅby Whisky Club Team',
+          data_type: 'string',
+          category: 'email',
+          description: 'Standard signature for outgoing emails',
+          is_public: false,
+          validation_rules: {
+            maxLength: 500,
+            maxLengthMessage: 'Email signature cannot exceed 500 characters'
+          }
+        },
+
+        // User Management & Privacy Settings
+        {
+          key: 'allow_public_profiles',
+          value: true,
+          data_type: 'boolean',
+          category: 'privacy',
+          description: 'Users can view each other\'s profiles and ratings',
+          is_public: false
+        },
+        {
+          key: 'require_real_names',
+          value: false,
+          data_type: 'boolean',
+          category: 'privacy',
+          description: 'Force first/last name during registration',
+          is_public: false
+        },
+        {
+          key: 'min_password_length',
+          value: 8,
+          data_type: 'number',
+          category: 'privacy',
+          description: 'Minimum password length requirement',
+          is_public: false,
+          validation_rules: {
+            min: 6,
+            max: 50,
+            minMessage: 'Minimum password length must be between 6 and 50'
+          }
+        },
+        {
+          key: 'password_complexity_required',
+          value: true,
+          data_type: 'boolean',
+          category: 'privacy',
+          description: 'Require special characters and numbers in passwords',
+          is_public: false
+        },
+        {
+          key: 'enable_user_avatars',
+          value: true,
+          data_type: 'boolean',
+          category: 'privacy',
+          description: 'Allow profile picture uploads',
+          is_public: false
+        },
+        {
+          key: 'member_directory_visible',
+          value: true,
+          data_type: 'boolean',
+          category: 'privacy',
+          description: 'Show member list to logged-in users',
+          is_public: false
+        },
+        {
+          key: 'allow_guest_browsing',
+          value: true,
+          data_type: 'boolean',
+          category: 'privacy',
+          description: 'Non-members can browse whiskies (read-only)',
+          is_public: true
+        },
+        {
+          key: 'registration_approval_required',
+          value: false,
+          data_type: 'boolean',
+          category: 'privacy',
+          description: 'Admin must approve new registrations',
+          is_public: false
+        },
+
+        // Events & Social Settings
+        {
+          key: 'max_event_attendees_default',
+          value: 50,
+          data_type: 'number',
+          category: 'events',
+          description: 'Default capacity for new events',
+          is_public: false,
+          validation_rules: {
+            min: 1,
+            max: 1000,
+            minMessage: 'Event capacity must be between 1 and 1000'
+          }
+        },
+        {
+          key: 'enable_event_waitlist',
+          value: true,
+          data_type: 'boolean',
+          category: 'events',
+          description: 'Allow waitlist when events are full',
+          is_public: false
+        },
+        {
+          key: 'rsvp_deadline_hours',
+          value: 24,
+          data_type: 'number',
+          category: 'events',
+          description: 'Hours before event when RSVP closes',
+          is_public: false,
+          validation_rules: {
+            min: 1,
+            max: 168,
+            minMessage: 'RSVP deadline must be between 1 and 168 hours (1 week)'
+          }
+        },
+        {
+          key: 'enable_event_photos',
+          value: true,
+          data_type: 'boolean',
+          category: 'events',
+          description: 'Allow photo uploads at events',
+          is_public: false
+        },
+        {
+          key: 'social_sharing_enabled',
+          value: true,
+          data_type: 'boolean',
+          category: 'events',
+          description: 'Share whiskies/events on social media',
+          is_public: false
+        },
+        {
+          key: 'enable_event_comments',
+          value: true,
+          data_type: 'boolean',
+          category: 'events',
+          description: 'Allow comments on events',
+          is_public: false
+        },
+        {
+          key: 'event_cancellation_notice_hours',
+          value: 48,
+          data_type: 'number',
+          category: 'events',
+          description: 'Minimum notice for event cancellations (hours)',
+          is_public: false,
+          validation_rules: {
+            min: 1,
+            max: 168,
+            minMessage: 'Cancellation notice must be between 1 and 168 hours'
+          }
+        },
+
+        // Analytics & Performance Settings
+        {
+          key: 'enable_google_analytics',
+          value: '',
+          data_type: 'string',
+          category: 'analytics',
+          description: 'Google Analytics tracking ID (leave empty to disable)',
+          is_public: false,
+          validation_rules: {
+            pattern: '^(GA-[A-Z0-9-]+|G-[A-Z0-9]+|$)',
+            patternMessage: 'Must be a valid Google Analytics ID (GA-XXXXXX or G-XXXXXX) or empty'
+          }
+        },
+        {
+          key: 'stats_public',
+          value: true,
+          data_type: 'boolean',
+          category: 'analytics',
+          description: 'Show basic statistics on homepage',
+          is_public: true
+        },
+        {
+          key: 'leaderboard_enabled',
+          value: true,
+          data_type: 'boolean',
+          category: 'analytics',
+          description: 'Show top raters/reviewers leaderboard',
+          is_public: false
+        },
+        {
+          key: 'export_backup_schedule',
+          value: 'weekly',
+          data_type: 'string',
+          category: 'analytics',
+          description: 'Automated backup frequency',
+          is_public: false,
+          validation_rules: {
+            enum: ['daily', 'weekly', 'monthly', 'disabled'],
+            enumMessage: 'Must be one of: daily, weekly, monthly, disabled'
+          }
+        },
+        {
+          key: 'maintenance_mode',
+          value: false,
+          data_type: 'boolean',
+          category: 'analytics',
+          description: 'Site-wide maintenance mode toggle',
+          is_public: false
+        },
+        {
+          key: 'maintenance_message',
+          value: 'The site is currently under maintenance. Please check back soon.',
+          data_type: 'string',
+          category: 'analytics',
+          description: 'Message shown during maintenance mode',
+          is_public: true,
+          validation_rules: {
+            maxLength: 500,
+            maxLengthMessage: 'Maintenance message cannot exceed 500 characters'
+          }
+        },
+        {
+          key: 'enable_usage_tracking',
+          value: true,
+          data_type: 'boolean',
+          category: 'analytics',
+          description: 'Track user activity for analytics',
+          is_public: false
+        },
+        {
+          key: 'performance_monitoring',
+          value: true,
+          data_type: 'boolean',
+          category: 'analytics',
+          description: 'Monitor site performance metrics',
+          is_public: false
+        },
+
+        // Features & Functionality Settings
+        {
+          key: 'require_admin_approval_whiskies',
+          value: false,
+          data_type: 'boolean',
+          category: 'features',
+          description: 'New whiskies need admin approval before publishing',
+          is_public: false
+        },
+        {
+          key: 'default_whisky_bottle_size',
+          value: 700,
+          data_type: 'number',
+          category: 'features',
+          description: 'Default bottle size in ml for new entries',
+          is_public: false,
+          validation_rules: {
+            min: 50,
+            max: 3000,
+            minMessage: 'Bottle size must be between 50ml and 3000ml'
+          }
+        },
+        {
+          key: 'enable_whisky_reviews',
+          value: true,
+          data_type: 'boolean',
+          category: 'features',
+          description: 'Allow detailed text reviews vs just numerical ratings',
+          is_public: true
+        },
+        {
+          key: 'max_rating_scale',
+          value: 10,
+          data_type: 'number',
+          category: 'features',
+          description: 'Rating scale maximum (5, 10, or 100)',
+          is_public: true,
+          validation_rules: {
+            enum: [5, 10, 100],
+            enumMessage: 'Rating scale must be 5, 10, or 100'
+          }
+        },
+        {
+          key: 'featured_whiskies_count',
+          value: 6,
+          data_type: 'number',
+          category: 'features',
+          description: 'Number of featured whiskies on homepage',
+          is_public: false,
+          validation_rules: {
+            min: 1,
+            max: 20,
+            minMessage: 'Featured whiskies count must be between 1 and 20'
+          }
+        },
+        {
+          key: 'enable_whisky_comparison',
+          value: true,
+          data_type: 'boolean',
+          category: 'features',
+          description: 'Allow side-by-side whisky comparisons',
+          is_public: false
+        },
+        {
+          key: 'tasting_notes_required',
+          value: false,
+          data_type: 'boolean',
+          category: 'features',
+          description: 'Require tasting notes with ratings',
+          is_public: false
+        },
+        {
+          key: 'enable_whisky_wishlist',
+          value: true,
+          data_type: 'boolean',
+          category: 'features',
+          description: 'Allow members to save whiskies they want to try',
+          is_public: false
+        },
+
+        // Localization & Regional Settings
+        {
+          key: 'default_language',
+          value: 'en',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Site default language code',
+          is_public: true,
+          validation_rules: {
+            enum: ['en', 'sv'],
+            enumMessage: 'Must be a supported language code (en, sv)'
+          }
+        },
+        {
+          key: 'available_languages',
+          value: 'en,sv',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Comma-separated list of enabled languages',
+          is_public: true,
+          validation_rules: {
+            pattern: '^[a-z]{2}(,[a-z]{2})*$',
+            patternMessage: 'Must be comma-separated language codes (e.g., en,sv,no)'
+          }
+        },
+        {
+          key: 'currency_symbol',
+          value: '$',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Currency symbol for pricing displays',
+          is_public: true,
+          validation_rules: {
+            maxLength: 5,
+            maxLengthMessage: 'Currency symbol cannot exceed 5 characters'
+          }
+        },
+        {
+          key: 'currency_code',
+          value: 'USD',
+          data_type: 'string',
+          category: 'localization',
+          description: 'ISO currency code',
+          is_public: true,
+          validation_rules: {
+            pattern: '^[A-Z]{3}$',
+            patternMessage: 'Must be a valid 3-letter ISO currency code (e.g., USD, SEK, EUR)'
+          }
+        },
+        {
+          key: 'date_format',
+          value: 'MM/DD/YYYY',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Regional date format preference',
+          is_public: true,
+          validation_rules: {
+            enum: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD'],
+            enumMessage: 'Must be one of: MM/DD/YYYY, DD/MM/YYYY, YYYY-MM-DD'
+          }
+        },
+        {
+          key: 'timezone',
+          value: 'America/New_York',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Club\'s primary timezone for events',
+          is_public: false,
+          validation_rules: {
+            pattern: '^[A-Za-z_]+/[A-Za-z_]+$',
+            patternMessage: 'Must be a valid timezone (e.g., America/New_York, Europe/Stockholm)'
+          }
+        },
+        {
+          key: 'enable_auto_translation',
+          value: false,
+          data_type: 'boolean',
+          category: 'localization',
+          description: 'Auto-detect user language preference',
+          is_public: false
         }
       ];
 
@@ -905,20 +1496,52 @@ class AdminController {
 
       // Custom validation rules
       if (validationRules) {
+        // Enum validation (for both strings and numbers)
+        if (validationRules.enum !== undefined) {
+          if (!validationRules.enum.includes(value)) {
+            return { 
+              valid: false, 
+              message: validationRules.enumMessage || `Value must be one of: ${validationRules.enum.join(', ')}` 
+            };
+          }
+        }
+
+        // Numeric range validation
         if (validationRules.min !== undefined && value < validationRules.min) {
-          return { valid: false, message: `Value must be at least ${validationRules.min}` };
+          return { 
+            valid: false, 
+            message: validationRules.minMessage || `Value must be at least ${validationRules.min}` 
+          };
         }
         if (validationRules.max !== undefined && value > validationRules.max) {
-          return { valid: false, message: `Value must be at most ${validationRules.max}` };
+          return { 
+            valid: false, 
+            message: validationRules.maxMessage || `Value must be at most ${validationRules.max}` 
+          };
         }
-        if (validationRules.minLength !== undefined && value.length < validationRules.minLength) {
-          return { valid: false, message: `Value must be at least ${validationRules.minLength} characters` };
-        }
-        if (validationRules.maxLength !== undefined && value.length > validationRules.maxLength) {
-          return { valid: false, message: `Value must be at most ${validationRules.maxLength} characters` };
-        }
-        if (validationRules.pattern && !new RegExp(validationRules.pattern).test(value)) {
-          return { valid: false, message: validationRules.patternMessage || 'Value does not match required pattern' };
+
+        // String length validation
+        if (dataType === 'string') {
+          if (validationRules.minLength !== undefined && value.length < validationRules.minLength) {
+            return { 
+              valid: false, 
+              message: validationRules.minLengthMessage || `Value must be at least ${validationRules.minLength} characters` 
+            };
+          }
+          if (validationRules.maxLength !== undefined && value.length > validationRules.maxLength) {
+            return { 
+              valid: false, 
+              message: validationRules.maxLengthMessage || `Value must be at most ${validationRules.maxLength} characters` 
+            };
+          }
+
+          // Pattern validation (regex)
+          if (validationRules.pattern && !new RegExp(validationRules.pattern).test(value)) {
+            return { 
+              valid: false, 
+              message: validationRules.patternMessage || 'Value does not match required pattern' 
+            };
+          }
         }
       }
 

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { adminAPI } from '../../services/adminAPI';
+import SearchableCountrySelector from './SearchableCountrySelector';
 import toast from 'react-hot-toast';
 
 const NewDistilleryModal = ({ isOpen, onClose, onDistilleryCreated, defaultName = '' }) => {
   const [loading, setLoading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState(null);
   
   const {
     register,
@@ -29,7 +31,21 @@ const NewDistilleryModal = ({ isOpen, onClose, onDistilleryCreated, defaultName 
       setValue('name', defaultName);
       setValue('slug', defaultName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
     }
+    
+    // Set default country selection
+    if (isOpen) {
+      setSelectedCountry({
+        name: 'Scotland',
+        code: 'SCT',
+        flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿'
+      });
+    }
   }, [isOpen, defaultName, setValue]);
+
+  const handleCountryChange = (countryName, countryCode, country) => {
+    setValue('country', countryName);
+    setSelectedCountry(country);
+  };
 
   const onSubmit = async (data) => {
     try {
@@ -134,27 +150,18 @@ const NewDistilleryModal = ({ isOpen, onClose, onDistilleryCreated, defaultName 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Country *
-                </label>
-                <select
+                <SearchableCountrySelector
+                  value={selectedCountry}
+                  onChange={handleCountryChange}
+                  error={errors.country?.message}
+                  required={true}
+                  placeholder="Search and select country..."
+                />
+                {/* Hidden field to register country value with react-hook-form */}
+                <input
                   {...register('country', { required: 'Country is required' })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500"
-                >
-                  <option value="Scotland">Scotland</option>
-                  <option value="Ireland">Ireland</option>
-                  <option value="United States">United States</option>
-                  <option value="Japan">Japan</option>
-                  <option value="Canada">Canada</option>
-                  <option value="India">India</option>
-                  <option value="Taiwan">Taiwan</option>
-                  <option value="England">England</option>
-                  <option value="Wales">Wales</option>
-                  <option value="Other">Other</option>
-                </select>
-                {errors.country && (
-                  <p className="mt-1 text-sm text-red-600">{errors.country.message}</p>
-                )}
+                  type="hidden"
+                />
               </div>
 
               <div>

@@ -78,7 +78,7 @@ const SystemSettingsPage = () => {
   };
 
   const renderSettingInput = (setting) => {
-    const { key, value, data_type, is_readonly } = setting;
+    const { key, value, data_type, is_readonly, validation_rules } = setting;
     const currentValue = editedValues[key] !== undefined ? editedValues[key] : value;
     const hasChanges = editedValues[key] !== undefined;
 
@@ -90,6 +90,26 @@ const SystemSettingsPage = () => {
           </span>
           <span className="ml-2 text-xs text-gray-500">Read-only</span>
         </div>
+      );
+    }
+
+    // Check if this setting has enum options (dropdown)
+    if (validation_rules?.enum) {
+      return (
+        <select
+          value={currentValue}
+          onChange={(e) => {
+            const value = data_type === 'number' ? parseFloat(e.target.value) : e.target.value;
+            handleValueChange(key, value, data_type);
+          }}
+          className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+        >
+          {validation_rules.enum.map(option => (
+            <option key={option} value={option}>
+              {String(option)}
+            </option>
+          ))}
+        </select>
       );
     }
 
@@ -113,17 +133,55 @@ const SystemSettingsPage = () => {
             value={currentValue}
             onChange={(e) => handleValueChange(key, e.target.value, data_type)}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            min={validation_rules?.min}
+            max={validation_rules?.max}
           />
         );
 
       case 'string':
       default:
+        // Special handling for different string types
+        let inputType = 'text';
+        let inputComponent = 'input';
+        let placeholder = '';
+
+        if (key.includes('url') || key.includes('image')) {
+          inputType = 'url';
+          placeholder = 'https://example.com/image.jpg or /images/local-image.jpg';
+        } else if (key.includes('email')) {
+          inputType = 'email';
+          placeholder = 'example@domain.com';
+        } else if (key.includes('password')) {
+          inputType = 'password';
+        } else if (key.includes('color')) {
+          inputType = 'color';
+        } else if (key.includes('template') || key.includes('message') || key.includes('signature')) {
+          inputComponent = 'textarea';
+        }
+
+        const commonProps = {
+          value: currentValue,
+          onChange: (e) => handleValueChange(key, e.target.value, data_type),
+          className: "block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500",
+          placeholder,
+          maxLength: validation_rules?.maxLength,
+          minLength: validation_rules?.minLength
+        };
+
+        if (inputComponent === 'textarea') {
+          return (
+            <textarea
+              {...commonProps}
+              rows={3}
+              className={`${commonProps.className} resize-vertical`}
+            />
+          );
+        }
+
         return (
           <input
-            type="text"
-            value={currentValue}
-            onChange={(e) => handleValueChange(key, e.target.value, data_type)}
-            className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+            {...commonProps}
+            type={inputType}
           />
         );
     }
@@ -135,6 +193,12 @@ const SystemSettingsPage = () => {
       case 'email': return '📧';
       case 'security': return '🔒';
       case 'content': return '📄';
+      case 'appearance': return '🎨';
+      case 'privacy': return '👤';
+      case 'events': return '🎉';
+      case 'analytics': return '📊';
+      case 'features': return '🚀';
+      case 'localization': return '🌍';
       default: return '📋';
     }
   };
@@ -145,6 +209,12 @@ const SystemSettingsPage = () => {
       case 'email': return 'border-green-200 bg-green-50';
       case 'security': return 'border-red-200 bg-red-50';
       case 'content': return 'border-purple-200 bg-purple-50';
+      case 'appearance': return 'border-pink-200 bg-pink-50';
+      case 'privacy': return 'border-yellow-200 bg-yellow-50';
+      case 'events': return 'border-indigo-200 bg-indigo-50';
+      case 'analytics': return 'border-teal-200 bg-teal-50';
+      case 'features': return 'border-orange-200 bg-orange-50';
+      case 'localization': return 'border-cyan-200 bg-cyan-50';
       default: return 'border-gray-200 bg-gray-50';
     }
   };
@@ -231,6 +301,51 @@ const SystemSettingsPage = () => {
                       {/* Setting Input */}
                       <div>
                         {renderSettingInput(setting)}
+                        
+                        {/* Image preview for image URL settings */}
+                        {(setting.key.includes('image') || setting.key.includes('url')) && 
+                         setting.data_type === 'string' && 
+                         (editedValues[setting.key] || setting.value) && (
+                          <div className="mt-2">
+                            <img 
+                              src={editedValues[setting.key] || setting.value} 
+                              alt="Preview" 
+                              className="h-16 w-16 object-contain border border-gray-200 rounded"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                              onLoad={(e) => {
+                                e.target.style.display = 'block';
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        {/* Color preview for color settings */}
+                        {setting.key.includes('color') && 
+                         setting.data_type === 'string' && 
+                         (editedValues[setting.key] || setting.value) && (
+                          <div className="mt-2 flex items-center space-x-2">
+                            <div 
+                              className="w-8 h-8 border border-gray-200 rounded"
+                              style={{ backgroundColor: editedValues[setting.key] || setting.value }}
+                            ></div>
+                            <span className="text-sm text-gray-600">
+                              {editedValues[setting.key] || setting.value}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Validation info */}
+                        {setting.validation_rules && (
+                          <div className="mt-1 text-xs text-gray-500">
+                            {setting.validation_rules.minLength && `Min: ${setting.validation_rules.minLength} chars`}
+                            {setting.validation_rules.maxLength && `Max: ${setting.validation_rules.maxLength} chars`}
+                            {setting.validation_rules.min !== undefined && `Min: ${setting.validation_rules.min}`}
+                            {setting.validation_rules.max !== undefined && `Max: ${setting.validation_rules.max}`}
+                            {setting.validation_rules.pattern && 'Format validation applied'}
+                          </div>
+                        )}
                       </div>
 
                       {/* Actions */}

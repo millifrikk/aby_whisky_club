@@ -17,6 +17,7 @@ const distilleryRoutes = require('./routes/distilleries');
 const ratingRoutes = require('./routes/ratings');
 const newsEventRoutes = require('./routes/newsEvents');
 const adminRoutes = require('./routes/admin');
+const settingsRoutes = require('./routes/settings');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -53,6 +54,7 @@ app.use('/api/distilleries', distilleryRoutes);
 app.use('/api/ratings', ratingRoutes);
 app.use('/api/news-events', newsEventRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // Basic API info
 app.get('/api', (req, res) => {

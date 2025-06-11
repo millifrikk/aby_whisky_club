@@ -110,4 +110,9 @@ export const healthAPI = {
   check: () => api.get('/health'),
 };
 
+// Public Settings API (for non-admin access to public settings)
+export const settingsAPI = {
+  getPublicSettings: (params) => api.get('/settings/public', { params }),
+};
+
 export default api;

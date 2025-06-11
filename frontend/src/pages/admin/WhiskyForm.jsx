@@ -5,6 +5,7 @@ import { whiskyAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import DistillerySelector from '../../components/common/DistillerySelector';
 import NewDistilleryModal from '../../components/common/NewDistilleryModal';
+import SearchableCountrySelector from '../../components/common/SearchableCountrySelector';
 import toast from 'react-hot-toast';
 
 const WhiskyForm = () => {
@@ -16,6 +17,7 @@ const WhiskyForm = () => {
   const [showNewDistilleryModal, setShowNewDistilleryModal] = useState(false);
   const [newDistilleryName, setNewDistilleryName] = useState('');
   const [selectedDistillery, setSelectedDistillery] = useState(null);
+  const [selectedCountry, setSelectedCountry] = useState(null);
   const isEdit = Boolean(id);
 
   const {
@@ -31,7 +33,7 @@ const WhiskyForm = () => {
       distillery: '',
       distillery_id: null,
       region: '',
-      country: 'Scotland',
+      country: '', // No default country - should be populated by distillery selection
       age: '',
       abv: '',
       type: 'single_malt',
@@ -95,6 +97,21 @@ const WhiskyForm = () => {
           id: whiskyData.distillery_id
         });
       }
+
+      // Set selected country if available
+      if (whiskyData.country) {
+        setSelectedCountry({
+          name: whiskyData.country,
+          code: whiskyData.country === 'Scotland' ? 'SCT' : 
+                whiskyData.country === 'United States' ? 'US' : 
+                whiskyData.country === 'Ireland' ? 'IE' : 
+                whiskyData.country === 'Japan' ? 'JP' : 'CUSTOM',
+          flag: whiskyData.country === 'Scotland' ? '🏴󠁧󠁢󠁳󠁣󠁴󠁿' : 
+                whiskyData.country === 'United States' ? '🇺🇸' : 
+                whiskyData.country === 'Ireland' ? '🇮🇪' : 
+                whiskyData.country === 'Japan' ? '🇯🇵' : '🌍'
+        });
+      }
     } catch (error) {
       console.error('Error loading whisky:', error);
       toast.error('Failed to load whisky details');
@@ -147,41 +164,34 @@ const WhiskyForm = () => {
     setValue('distillery_id', distilleryId);
     setSelectedDistillery(distillery);
     
-    // Auto-populate region and country if distillery has this data
+    // Auto-populate region and country from distillery data (always override)
     if (distillery && typeof distillery === 'object') {
-      const currentRegion = watch('region');
-      const currentCountry = watch('country');
-      
-      // Auto-populate region if distillery has region data and:
-      // - Field is empty, OR
-      // - Field has default value, OR  
-      // - Current region doesn't match the distillery's country (e.g., Speyside for US distillery)
       if (distillery.region) {
-        const shouldPopulateRegion = !currentRegion || 
-                                   currentRegion === '' || 
-                                   currentRegion === 'Select Region' ||
-                                   (distillery.country === 'United States' && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands'].includes(currentRegion)) ||
-                                   (distillery.country === 'Scotland' && ['Kentucky', 'Tennessee'].includes(currentRegion)) ||
-                                   (distillery.country === 'Japan' && !['Osaka'].includes(currentRegion) && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands', 'Kentucky', 'Tennessee'].includes(currentRegion));
-        
-        if (shouldPopulateRegion) {
-          setValue('region', distillery.region);
-        }
+        setValue('region', distillery.region);
       }
       
-      // Auto-populate country if distillery has country data and:
-      // - Field is empty, OR
-      // - Field has default value (Scotland), OR
-      // - Field doesn't match the distillery's country
       if (distillery.country) {
-        const shouldPopulateCountry = !currentCountry || 
-                                    currentCountry === '' || 
-                                    currentCountry === 'Scotland' ||
-                                    currentCountry !== distillery.country;
+        setValue('country', distillery.country);
+        // Update selected country state for the SearchableCountrySelector
+        // Use a more comprehensive mapping or find from countries data
+        const countryMappings = {
+          'Scotland': { code: 'SCT', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+          'United States': { code: 'US', flag: '🇺🇸' },
+          'Ireland': { code: 'IE', flag: '🇮🇪' },
+          'Japan': { code: 'JP', flag: '🇯🇵' },
+          'Canada': { code: 'CA', flag: '🇨🇦' },
+          'India': { code: 'IN', flag: '🇮🇳' },
+          'Taiwan': { code: 'TW', flag: '🇹🇼' },
+          'England': { code: 'EN', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+          'Wales': { code: 'WLS', flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿' }
+        };
         
-        if (shouldPopulateCountry) {
-          setValue('country', distillery.country);
-        }
+        const mapping = countryMappings[distillery.country] || { code: 'CUSTOM', flag: '🌍' };
+        setSelectedCountry({
+          name: distillery.country,
+          code: mapping.code,
+          flag: mapping.flag
+        });
       }
     }
   };
@@ -197,36 +207,40 @@ const WhiskyForm = () => {
     setValue('distillery_id', newDistillery.id);
     setSelectedDistillery(newDistillery);
     
-    // Auto-populate region and country from newly created distillery
-    const currentRegion = watch('region');
-    const currentCountry = watch('country');
-    
-    // Use the same enhanced logic as handleDistilleryChange
+    // Auto-populate region and country from newly created distillery (always override)
     if (newDistillery.region) {
-      const shouldPopulateRegion = !currentRegion || 
-                                 currentRegion === '' || 
-                                 currentRegion === 'Select Region' ||
-                                 (newDistillery.country === 'United States' && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands'].includes(currentRegion)) ||
-                                 (newDistillery.country === 'Scotland' && ['Kentucky', 'Tennessee'].includes(currentRegion)) ||
-                                 (newDistillery.country === 'Japan' && !['Osaka'].includes(currentRegion) && ['Speyside', 'Islay', 'Highlands', 'Lowlands', 'Campbeltown', 'Islands', 'Kentucky', 'Tennessee'].includes(currentRegion));
-      
-      if (shouldPopulateRegion) {
-        setValue('region', newDistillery.region);
-      }
+      setValue('region', newDistillery.region);
     }
     
     if (newDistillery.country) {
-      const shouldPopulateCountry = !currentCountry || 
-                                  currentCountry === '' || 
-                                  currentCountry === 'Scotland' ||
-                                  currentCountry !== newDistillery.country;
+      setValue('country', newDistillery.country);
+      // Update selected country state for the SearchableCountrySelector
+      const countryMappings = {
+        'Scotland': { code: 'SCT', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+        'United States': { code: 'US', flag: '🇺🇸' },
+        'Ireland': { code: 'IE', flag: '🇮🇪' },
+        'Japan': { code: 'JP', flag: '🇯🇵' },
+        'Canada': { code: 'CA', flag: '🇨🇦' },
+        'India': { code: 'IN', flag: '🇮🇳' },
+        'Taiwan': { code: 'TW', flag: '🇹🇼' },
+        'England': { code: 'EN', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿' },
+        'Wales': { code: 'WLS', flag: '🏴󠁧󠁢󠁷󠁬󠁳󠁿' }
+      };
       
-      if (shouldPopulateCountry) {
-        setValue('country', newDistillery.country);
-      }
+      const mapping = countryMappings[newDistillery.country] || { code: 'CUSTOM', flag: '🌍' };
+      setSelectedCountry({
+        name: newDistillery.country,
+        code: mapping.code,
+        flag: mapping.flag
+      });
     }
     
     toast.success(`Distillery "${newDistillery.name}" created and selected!`);
+  };
+
+  const handleCountryChange = (countryName, countryCode, country) => {
+    setValue('country', countryName);
+    setSelectedCountry(country);
   };
 
   if (!isAdmin()) {
@@ -297,42 +311,29 @@ const WhiskyForm = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Region
               </label>
-              <select
+              <input
                 {...register('region')}
+                type="text"
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500"
-              >
-                <option value="">Select Region</option>
-                <option value="Speyside">Speyside</option>
-                <option value="Islay">Islay</option>
-                <option value="Highlands">Highlands</option>
-                <option value="Lowlands">Lowlands</option>
-                <option value="Campbeltown">Campbeltown</option>
-                <option value="Islands">Islands</option>
-                <option value="Kentucky">Kentucky</option>
-                <option value="Tennessee">Tennessee</option>
-                <option value="Ireland">Ireland</option>
-                <option value="Osaka">Osaka</option>
-                <option value="Other">Other</option>
-              </select>
+                placeholder="e.g., Speyside, Kentucky, Osaka"
+              />
+              <p className="mt-1 text-sm text-gray-500">
+                Enter the distillery's region or leave empty
+              </p>
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Country
-              </label>
-              <select
+              <SearchableCountrySelector
+                value={selectedCountry || watch('country')}
+                onChange={handleCountryChange}
+                error={errors.country?.message}
+                placeholder="Select distillery first, or search country..."
+              />
+              {/* Hidden field to register country value with react-hook-form */}
+              <input
                 {...register('country')}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500"
-              >
-                <option value="Scotland">Scotland</option>
-                <option value="Ireland">Ireland</option>
-                <option value="United States">United States</option>
-                <option value="Japan">Japan</option>
-                <option value="Canada">Canada</option>
-                <option value="India">India</option>
-                <option value="Taiwan">Taiwan</option>
-                <option value="Other">Other</option>
-              </select>
+                type="hidden"
+              />
             </div>
 
             <div>
