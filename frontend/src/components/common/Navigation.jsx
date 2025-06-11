@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
+import LanguageSelector from './LanguageSelector';
 
 const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
+  const { t } = useTranslation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -19,10 +22,10 @@ const Navigation = () => {
   };
 
   const navItems = [
-    { name: 'Home', path: '/', public: true },
-    { name: 'Whiskies', path: '/whiskies', public: true },
-    { name: 'Events', path: '/events', public: true },
-    { name: 'Ratings', path: '/ratings', public: true },
+    { name: t('navigation.home'), path: '/', public: true },
+    { name: t('navigation.whiskies'), path: '/whiskies', public: true },
+    { name: t('navigation.events'), path: '/events', public: true },
+    { name: t('navigation.ratings'), path: '/ratings', public: true },
   ];
 
   return (
@@ -32,12 +35,13 @@ const Navigation = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="text-3xl font-bold text-amber-100 hover:text-white transition-colors">
-              🥃 Åby Whisky Club
+              Åby Whisky Club
             </Link>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
+            <LanguageSelector />
             {navItems.map((item) => (
               <Link
                 key={item.path}
@@ -56,7 +60,7 @@ const Navigation = () => {
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 <div className="text-amber-100">
-                  Welcome, {user?.first_name || user?.username}
+                  {t('auth.welcome_back_message', { name: user?.first_name || user?.username })}
                 </div>
                 <div className="relative group">
                   <button className="text-amber-100 hover:text-white transition-colors">
@@ -67,21 +71,21 @@ const Navigation = () => {
                       to="/profile"
                       className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      Profile
+                      {t('navigation.profile')}
                     </Link>
                     {user?.role === 'admin' && (
                       <Link
                         to="/admin"
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                       >
-                        Admin Panel
+                        {t('navigation.admin')}
                       </Link>
                     )}
                     <button
                       onClick={handleLogout}
                       className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
                     >
-                      Logout
+                      {t('navigation.logout')}
                     </button>
                   </div>
                 </div>
@@ -96,13 +100,13 @@ const Navigation = () => {
                       : 'text-amber-100 hover:text-white'
                   }`}
                 >
-                  Login
+                  {t('navigation.login')}
                 </Link>
                 <Link
                   to="/register"
                   className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors"
                 >
-                  Join Club
+                  {t('navigation.register')}
                 </Link>
               </div>
             )}
@@ -129,6 +133,9 @@ const Navigation = () => {
         {mobileMenuOpen && (
           <div className="md:hidden pb-4">
             <div className="space-y-2">
+              <div className="px-3 py-2">
+                <LanguageSelector />
+              </div>
               {navItems.map((item) => (
                 <Link
                   key={item.path}
@@ -151,7 +158,7 @@ const Navigation = () => {
                     onClick={() => setMobileMenuOpen(false)}
                     className="block px-3 py-2 rounded-md text-amber-100 hover:bg-amber-700 hover:text-white transition-colors"
                   >
-                    Profile
+                    {t('navigation.profile')}
                   </Link>
                   {user?.role === 'admin' && (
                     <Link
@@ -159,14 +166,14 @@ const Navigation = () => {
                       onClick={() => setMobileMenuOpen(false)}
                       className="block px-3 py-2 rounded-md text-amber-100 hover:bg-amber-700 hover:text-white transition-colors"
                     >
-                      Admin Panel
+                      {t('navigation.admin')}
                     </Link>
                   )}
                   <button
                     onClick={handleLogout}
                     className="block w-full text-left px-3 py-2 rounded-md text-amber-100 hover:bg-amber-700 hover:text-white transition-colors"
                   >
-                    Logout
+                    {t('navigation.logout')}
                   </button>
                 </>
               ) : (
@@ -180,14 +187,14 @@ const Navigation = () => {
                         : 'text-amber-100 hover:bg-amber-700 hover:text-white'
                     }`}
                   >
-                    Login
+                    {t('navigation.login')}
                   </Link>
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
                     className="block px-3 py-2 rounded-md bg-amber-600 text-white hover:bg-amber-700 transition-colors"
                   >
-                    Join Club
+                    {t('navigation.register')}
                   </Link>
                 </>
               )}

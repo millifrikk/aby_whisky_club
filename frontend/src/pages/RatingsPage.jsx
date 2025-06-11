@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ratingAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 
 const RatingsPage = () => {
   const { user, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const [userRatings, setUserRatings] = useState([]);
   const [topWhiskies, setTopWhiskies] = useState([]);
   const [recentRatings, setRecentRatings] = useState([]);

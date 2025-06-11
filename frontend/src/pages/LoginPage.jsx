@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, loading } = useAuth();
+  const { t } = useTranslation();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -39,7 +41,7 @@ const LoginPage = () => {
           <div className="text-center">
             <h1 className="text-4xl font-bold text-amber-800">🥃</h1>
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
-              Welcome back to Åby Whisky Club
+              {t('auth.welcome_back')}
             </h2>
             <p className="mt-2 text-sm text-gray-600">
               Or{' '}
@@ -47,7 +49,7 @@ const LoginPage = () => {
                 to="/register"
                 className="font-medium text-amber-600 hover:text-amber-500"
               >
-                join the club today
+                {t('auth.join_club')}
               </Link>
             </p>
           </div>
@@ -57,18 +59,18 @@ const LoginPage = () => {
           <div className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+                {t('auth.email')}
               </label>
               <input
                 {...register('email', {
-                  required: 'Email is required',
+                  required: t('auth.email_required'),
                   pattern: {
                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
-                    message: 'Invalid email address',
+                    message: t('auth.invalid_email'),
                   },
                 })}
                 type="email"
-                autoComplete="email"
+                autoComplete="off"
                 className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
                 placeholder="Enter your email"
               />
@@ -79,15 +81,15 @@ const LoginPage = () => {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
+                {t('auth.password')}
               </label>
               <div className="mt-1 relative">
                 <input
                   {...register('password', {
-                    required: 'Password is required',
+                    required: t('auth.password_required'),
                   })}
                   type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
+                  autoComplete="off"
                   className="appearance-none rounded-md relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
                   placeholder="Enter your password"
                 />
@@ -135,7 +137,7 @@ const LoginPage = () => {
                   Signing in...
                 </>
               ) : (
-                'Sign in'
+                t('auth.sign_in')
               )}
             </button>
           </div>
@@ -145,17 +147,17 @@ const LoginPage = () => {
               to="/forgot-password"
               className="text-sm text-amber-600 hover:text-amber-500"
             >
-              Forgot your password?
+              {t('auth.forgot_password')}
             </Link>
           </div>
         </form>
 
         {/* Demo Credentials */}
         <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-md">
-          <h3 className="text-sm font-medium text-amber-800 mb-2">Demo Credentials</h3>
+          <h3 className="text-sm font-medium text-amber-800 mb-2">{t('auth.demo_credentials')}</h3>
           <div className="text-xs text-amber-700 space-y-1">
-            <div><strong>Admin:</strong> admin@abywhiskyclub.com / AdminPass123!</div>
-            <div><strong>Member:</strong> erik@example.com / MemberPass123!</div>
+            <div><strong>{t('auth.admin')}:</strong> admin@abywhiskyclub.com / AdminPass123!</div>
+            <div><strong>{t('auth.member')}:</strong> erik@example.com / MemberPass123!</div>
           </div>
         </div>
       </div>

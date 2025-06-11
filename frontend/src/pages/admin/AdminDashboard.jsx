@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { whiskyAPI, newsEventAPI, ratingAPI, adminAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { t } = useTranslation();
   const [stats, setStats] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -55,8 +57,8 @@ const AdminDashboard = () => {
     <div className="space-y-8">
       {/* Header */}
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="text-gray-600">Manage your whisky club's content and data</p>
+        <h1 className="text-3xl font-bold text-gray-900">{t('admin.dashboard')}</h1>
+        <p className="text-gray-600">{t('admin.welcome')}</p>
       </div>
 
       {/* Quick Actions */}

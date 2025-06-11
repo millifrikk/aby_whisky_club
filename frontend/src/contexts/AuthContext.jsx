@@ -1,6 +1,7 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { authAPI } from '../services/api';
 import toast from 'react-hot-toast';
+import useIdleTimer from '../hooks/useIdleTimer';
 
 const AuthContext = createContext({});
 
@@ -98,7 +99,7 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const logout = async () => {
+  const logout = useCallback(async (isAutoLogout = false) => {
     try {
       await authAPI.logout();
     } catch (error) {
@@ -109,9 +110,14 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('user');
       setUser(null);
       setIsAuthenticated(false);
-      toast.success('Logged out successfully');
+      
+      if (isAutoLogout) {
+        toast.error('You have been logged out due to inactivity');
+      } else {
+        toast.success('Logged out successfully');
+      }
     }
-  };
+  }, []);
 
   const updateProfile = async (profileData) => {
     try {
@@ -157,6 +163,20 @@ export const AuthProvider = ({ children }) => {
   const isMember = () => {
     return hasRole('member') || hasRole('admin');
   };
+
+  // Handle idle timeout - logout user automatically
+  const handleIdleTimeout = useCallback(() => {
+    if (isAuthenticated) {
+      logout(true); // true indicates auto-logout
+    }
+  }, [isAuthenticated, logout]);
+
+  // Set up idle timer (15 minutes = 15 * 60 * 1000 ms)
+  useIdleTimer({
+    timeout: 15 * 60 * 1000,
+    onIdle: handleIdleTimeout,
+    isEnabled: isAuthenticated
+  });
 
   const value = {
     user,

@@ -179,6 +179,9 @@ npm run lint
 ### 🥃 **Whisky Catalog**
 - ✅ Comprehensive whisky database with distillery information
 - ✅ Advanced filtering (region, type, age, ABV)
+- ✅ **Dual Layout System**: Card and Table view with toggle
+- ✅ **Interactive Table**: Clickable rows with responsive design
+- ✅ **View Persistence**: User layout preference saved across sessions
 - ✅ Featured whisky showcase
 - ✅ Detailed whisky profiles with tasting notes
 
@@ -206,6 +209,13 @@ npm run lint
 - ✅ Flag inappropriate content
 - ✅ Bulk content management actions
 
+### 🌍 **Internationalization & UI**
+- ✅ **Multi-language Support**: English/Swedish with real-time switching
+- ✅ **Flag-based Language Selector**: Clean, intuitive country flag interface
+- ✅ **Responsive Design**: Optimized for desktop, tablet, and mobile
+- ✅ **Cross-device Access**: Network-accessible for local device viewing
+- ✅ **Professional Branding**: Clean typography and consistent theming
+
 ## 📈 Development Phases Completed
 
 ✅ **Phase 1:** Backend Foundation (Express.js, PostgreSQL, Authentication)  
@@ -213,7 +223,9 @@ npm run lint
 ✅ **Phase 2.5:** Rating System Implementation  
 ✅ **Phase 3:** User Profile Management  
 ✅ **Phase 4:** News & Events Frontend  
-✅ **Phase 5:** Admin Panel Enhancements
+✅ **Phase 5:** Admin Panel Enhancements  
+✅ **Phase 6:** Internationalization System (English/Swedish)  
+✅ **Phase 7:** Advanced UI Enhancements & Table Layout System
 
 ### Default Admin Credentials
 

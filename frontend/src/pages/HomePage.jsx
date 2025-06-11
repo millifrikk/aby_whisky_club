@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { whiskyAPI, newsEventAPI, ratingAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useTranslation } from 'react-i18next';
 import WhiskyStatsCharts from '../components/charts/WhiskyStatsCharts';
 import WhiskyImage from '../components/common/WhiskyImage';
 import toast from 'react-hot-toast';
 
 const HomePage = () => {
   const { user, isAuthenticated } = useAuth();
+  const { t } = useTranslation();
   const [featuredWhiskies, setFeaturedWhiskies] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [recentRatings, setRecentRatings] = useState([]);
@@ -84,18 +86,17 @@ const HomePage = () => {
            style={{
              backgroundImage: 'url(/images/aby_whisky_club_header01.png)',
              backgroundSize: 'cover',
-             backgroundPosition: 'center',
+             backgroundPosition: 'center top',
              backgroundRepeat: 'no-repeat'
            }}>
         <div className="absolute inset-0 bg-gradient-to-r from-amber-800/70 to-amber-900/70"></div>
         <div className="absolute inset-0 bg-black/30"></div>
         <div className="relative px-8 py-16 text-center text-white">
-          <div className="text-6xl mb-4">🥃</div>
           <h1 className="text-5xl font-bold mb-4">
-            Welcome to Åby Whisky Club
+            {t('home.welcome')}
           </h1>
           <p className="text-xl text-amber-100 mb-8">
-            Your gateway to exceptional whisky experiences
+            {t('home.subtitle')}
           </p>
           
           {!isAuthenticated && (
@@ -104,13 +105,13 @@ const HomePage = () => {
                 to="/login"
                 className="bg-white text-amber-800 px-6 py-3 rounded-md hover:bg-amber-50 transition-colors font-semibold"
               >
-                Login
+                {t('navigation.login')}
               </Link>
               <Link
                 to="/register"
                 className="border-2 border-white text-white px-6 py-3 rounded-md hover:bg-white hover:text-amber-800 transition-colors font-semibold"
               >
-                Join the Club
+                {t('navigation.register')}
               </Link>
             </div>
           )}
@@ -118,7 +119,7 @@ const HomePage = () => {
           {isAuthenticated && (
             <div className="bg-white bg-opacity-20 p-4 rounded-lg border border-white border-opacity-30">
               <p className="text-white">
-                Welcome back, <span className="font-semibold">{user?.first_name || user?.username}</span>!
+                {t('auth.welcome_back_message', { name: user?.first_name || user?.username })}
               </p>
             </div>
           )}
@@ -130,24 +131,26 @@ const HomePage = () => {
       {/* Stats Section */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
-          <div className="text-4xl mb-2">🥃</div>
+          <div className="w-12 h-12 mx-auto mb-2">
+            <img src="/whisky-icon.svg" alt="Whisky" className="w-full h-full filter brightness-0 invert" />
+          </div>
           <div className="text-3xl font-bold">{stats.total_whiskies || 0}</div>
-          <div className="text-amber-100">Total Whiskies</div>
+          <div className="text-amber-100">{t('admin.total_whiskies')}</div>
         </div>
         <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
           <div className="text-4xl mb-2">🏭</div>
           <div className="text-3xl font-bold">{stats.total_distilleries || 0}</div>
-          <div className="text-blue-100">Distilleries</div>
+          <div className="text-blue-100">{t('whisky.distilleries')}</div>
         </div>
         <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
           <div className="text-4xl mb-2">⏰</div>
           <div className="text-3xl font-bold">{stats.average_age || 'N/A'}</div>
-          <div className="text-green-100">Avg Age (Years)</div>
+          <div className="text-green-100">Avg {t('whisky.age')} ({t('whisky.years_old')})</div>
         </div>
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
           <div className="text-4xl mb-2">💪</div>
           <div className="text-3xl font-bold">{stats.average_abv || 'N/A'}%</div>
-          <div className="text-purple-100">Avg ABV</div>
+          <div className="text-purple-100">Avg {t('whisky.abv')}</div>
         </div>
       </div>
 
@@ -157,12 +160,12 @@ const HomePage = () => {
           <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
             <div className="text-3xl">📋</div>
           </div>
-          <h3 className="text-xl font-semibold mb-3 text-gray-800">Inventory Management</h3>
+          <h3 className="text-xl font-semibold mb-3 text-gray-800">{t('home.sections.inventory')}</h3>
           <p className="text-gray-600 mb-6 leading-relaxed">
-            Track our extensive whisky collection with detailed information and ratings.
+            {t('home.sections.inventory_desc')}
           </p>
           <Link to="/whiskies" className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium transition-colors">
-            Browse Collection 
+            {t('home.sections.browse_collection')} 
             <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -173,12 +176,12 @@ const HomePage = () => {
           <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
             <div className="text-3xl">⭐</div>
           </div>
-          <h3 className="text-xl font-semibold mb-3 text-gray-800">Rating System</h3>
+          <h3 className="text-xl font-semibold mb-3 text-gray-800">{t('home.sections.rating_system')}</h3>
           <p className="text-gray-600 mb-6 leading-relaxed">
-            Share your tasting notes and discover what fellow members recommend.
+            {t('home.sections.rating_desc')}
           </p>
           <Link to="/ratings" className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium transition-colors">
-            View Ratings 
+            {t('home.sections.view_ratings')} 
             <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -189,12 +192,12 @@ const HomePage = () => {
           <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
             <div className="text-3xl">🗓️</div>
           </div>
-          <h3 className="text-xl font-semibold mb-3 text-gray-800">Events & News</h3>
+          <h3 className="text-xl font-semibold mb-3 text-gray-800">{t('home.sections.events_news')}</h3>
           <p className="text-gray-600 mb-6 leading-relaxed">
-            Stay updated with club events, tastings, and announcements.
+            {t('home.sections.events_desc')}
           </p>
           <Link to="/events" className="inline-flex items-center text-amber-600 hover:text-amber-700 font-medium transition-colors">
-            See Events 
+            {t('home.sections.see_events')} 
             <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
             </svg>
@@ -209,9 +212,9 @@ const HomePage = () => {
       {featuredWhiskies.length > 0 && (
         <section>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Featured Whiskies</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t('whisky.featured')}</h2>
             <Link to="/whiskies" className="text-amber-600 hover:text-amber-700">
-              View All →
+              {t('whisky.view_all')} →
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -227,7 +230,7 @@ const HomePage = () => {
                   <h3 className="font-semibold text-lg mb-2">{whisky.name}</h3>
                   <p className="text-gray-600 mb-2">{whisky.distillery}</p>
                   <p className="text-sm text-gray-500 mb-4">
-                    {whisky.region} • {whisky.age ? `${whisky.age} years` : 'NAS'} • {whisky.abv}% ABV
+                    {whisky.region} • {whisky.age ? `${whisky.age} ${t('whisky.years_old')}` : 'NAS'} • {whisky.abv}% {t('whisky.abv')}
                   </p>
                   {whisky.rating_average > 0 && (
                     <div className="flex items-center mb-4">
@@ -242,7 +245,7 @@ const HomePage = () => {
                     to={`/whiskies/${whisky.id}`}
                     className="text-amber-600 hover:text-amber-700 text-sm font-medium"
                   >
-                    View Details →
+                    {t('whisky.view_details')} →
                   </Link>
                 </div>
               </div>
@@ -255,9 +258,9 @@ const HomePage = () => {
       {upcomingEvents.length > 0 && (
         <section>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Upcoming Events</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t('home.sections.upcoming_events')}</h2>
             <Link to="/events" className="text-amber-600 hover:text-amber-700">
-              View All →
+              {t('whisky.view_all')} →
             </Link>
           </div>
           <div className="space-y-4">
@@ -277,7 +280,7 @@ const HomePage = () => {
                     to={`/events/${event.id}`}
                     className="text-amber-600 hover:text-amber-700 text-sm font-medium whitespace-nowrap"
                   >
-                    Learn More →
+                    {t('home.sections.learn_more')} →
                   </Link>
                 </div>
               </div>
@@ -290,9 +293,9 @@ const HomePage = () => {
       {recentRatings.length > 0 && (
         <section>
           <div className="flex justify-between items-center mb-6">
-            <h2 className="text-2xl font-bold text-gray-900">Recent Ratings</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{t('home.sections.recent_ratings')}</h2>
             <Link to="/ratings" className="text-amber-600 hover:text-amber-700">
-              View All →
+              {t('whisky.view_all')} →
             </Link>
           </div>
           <div className="space-y-4">

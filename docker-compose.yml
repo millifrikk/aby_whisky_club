@@ -37,7 +37,7 @@ services:
       JWT_SECRET: your-super-secret-jwt-key-change-in-production
       PORT: 3001
     ports:
-      - "3001:3001"
+      - "0.0.0.0:3001:3001"
     volumes:
       - ./backend:/app
       - /app/node_modules
@@ -55,11 +55,11 @@ services:
       dockerfile: Dockerfile
     container_name: aby_whisky_frontend
     environment:
-      VITE_API_URL: http://localhost:3001/api
-      REACT_APP_API_URL: http://localhost:3001/api
+      VITE_API_URL: http://192.168.3.41:3001/api
+      REACT_APP_API_URL: http://192.168.3.41:3001/api
       REACT_APP_ENV: development
     ports:
-      - "3000:3000"
+      - "0.0.0.0:3000:3000"
     volumes:
       - ./frontend:/app
       - /app/node_modules

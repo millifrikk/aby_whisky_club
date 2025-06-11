@@ -1,0 +1,6 @@
+wsl.exe -d Ubuntu
+
+wsl.exe -u root -d Ubuntu
+
+
+http://localhost:3000/admin/whiskies/new
