@@ -1305,7 +1305,7 @@ class AdminController {
           data_type: 'number',
           category: 'features',
           description: 'Default bottle size in ml for new entries',
-          is_public: false,
+          is_public: true,
           validation_rules: {
             min: 50,
             max: 3000,
@@ -1420,6 +1420,58 @@ class AdminController {
           }
         },
         {
+          key: 'exchange_rate_usd',
+          value: 1.0,
+          data_type: 'number',
+          category: 'localization',
+          description: 'Exchange rate: 1 USD = X USD (base rate)',
+          is_public: false,
+          validation_rules: {
+            min: 0.01,
+            max: 1000,
+            minMessage: 'Exchange rate must be between 0.01 and 1000'
+          }
+        },
+        {
+          key: 'exchange_rate_sek',
+          value: 10.5,
+          data_type: 'number',
+          category: 'localization',
+          description: 'Exchange rate: 1 USD = X SEK',
+          is_public: false,
+          validation_rules: {
+            min: 0.01,
+            max: 1000,
+            minMessage: 'Exchange rate must be between 0.01 and 1000'
+          }
+        },
+        {
+          key: 'exchange_rate_eur',
+          value: 0.85,
+          data_type: 'number',
+          category: 'localization',
+          description: 'Exchange rate: 1 USD = X EUR',
+          is_public: false,
+          validation_rules: {
+            min: 0.01,
+            max: 1000,
+            minMessage: 'Exchange rate must be between 0.01 and 1000'
+          }
+        },
+        {
+          key: 'exchange_rate_gbp',
+          value: 0.75,
+          data_type: 'number',
+          category: 'localization',
+          description: 'Exchange rate: 1 USD = X GBP',
+          is_public: false,
+          validation_rules: {
+            min: 0.01,
+            max: 1000,
+            minMessage: 'Exchange rate must be between 0.01 and 1000'
+          }
+        },
+        {
           key: 'date_format',
           value: 'MM/DD/YYYY',
           data_type: 'string',
@@ -1441,6 +1493,54 @@ class AdminController {
           validation_rules: {
             pattern: '^[A-Za-z_]+/[A-Za-z_]+$',
             patternMessage: 'Must be a valid timezone (e.g., America/New_York, Europe/Stockholm)'
+          }
+        },
+        {
+          key: 'volume_unit',
+          value: 'ml',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Unit of measurement for volume',
+          is_public: true,
+          validation_rules: {
+            enum: ['ml', 'cl', 'l', 'fl oz', 'pt', 'qt', 'gal'],
+            enumMessage: 'Must be one of: ml, cl, l, fl oz, pt, qt, gal'
+          }
+        },
+        {
+          key: 'weight_unit',
+          value: 'kg',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Unit of measurement for weight',
+          is_public: true,
+          validation_rules: {
+            enum: ['g', 'kg', 'oz', 'lb'],
+            enumMessage: 'Must be one of: g, kg, oz, lb'
+          }
+        },
+        {
+          key: 'temperature_unit',
+          value: '°C',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Unit of measurement for temperature',
+          is_public: true,
+          validation_rules: {
+            enum: ['°C', '°F'],
+            enumMessage: 'Must be one of: °C, °F'
+          }
+        },
+        {
+          key: 'distance_unit',
+          value: 'km',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Unit of measurement for distance',
+          is_public: true,
+          validation_rules: {
+            enum: ['km', 'mi', 'm', 'ft'],
+            enumMessage: 'Must be one of: km, mi, m, ft'
           }
         },
         {
@@ -1869,6 +1969,247 @@ class AdminController {
     }
 
     return results;
+  }
+
+  // Get pending user registrations
+  static async getPendingRegistrations(req, res) {
+    try {
+      const { page = 1, limit = 20 } = req.query;
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+
+      const { count, rows: users } = await User.findAndCountAll({
+        where: { approval_status: 'pending' },
+        order: [['created_at', 'ASC']], // Oldest first
+        limit: parseInt(limit),
+        offset,
+        attributes: { exclude: ['password_hash'] }
+      });
+
+      const totalPages = Math.ceil(count / parseInt(limit));
+
+      res.json({
+        users,
+        pagination: {
+          current_page: parseInt(page),
+          total_pages: totalPages,
+          total_count: count,
+          limit: parseInt(limit),
+          has_next: parseInt(page) < totalPages,
+          has_prev: parseInt(page) > 1
+        }
+      });
+    } catch (error) {
+      console.error('Get pending registrations error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch pending registrations',
+        message: 'An error occurred while fetching pending registrations'
+      });
+    }
+  }
+
+  // Approve or reject user registration
+  static async moderateUserRegistration(req, res) {
+    try {
+      const { userId } = req.params;
+      const { action, notes } = req.body; // action: 'approve' or 'reject'
+
+      const user = await User.findByPk(userId);
+      if (!user) {
+        return res.status(404).json({
+          error: 'User not found',
+          message: 'The specified user could not be found'
+        });
+      }
+
+      if (user.approval_status !== 'pending') {
+        return res.status(400).json({
+          error: 'Invalid operation',
+          message: 'User registration is not pending approval'
+        });
+      }
+
+      const updateData = {
+        approval_status: action === 'approve' ? 'approved' : 'rejected',
+        approval_date: new Date(),
+        approved_by: req.user.id,
+        approval_notes: notes || null
+      };
+
+      await user.update(updateData);
+
+      res.json({
+        message: `User registration ${action}d successfully`,
+        user: user.toSafeObject(),
+        action,
+        approved_by: req.user.username
+      });
+    } catch (error) {
+      console.error('Moderate user registration error:', error);
+      res.status(500).json({
+        error: 'Failed to moderate user registration',
+        message: 'An error occurred while moderating the user registration'
+      });
+    }
+  }
+
+  // Whisky Approval Management
+
+  // Get all pending whiskies awaiting approval
+  static async getPendingWhiskies(req, res) {
+    try {
+      const {
+        page = 1,
+        limit = 20,
+        sort_by = 'created_at',
+        sort_order = 'DESC'
+      } = req.query;
+
+      // Build order clause
+      const validSortFields = ['name', 'distillery', 'created_at', 'approval_status'];
+      const orderField = validSortFields.includes(sort_by) ? sort_by : 'created_at';
+      const orderDirection = sort_order.toUpperCase() === 'DESC' ? 'DESC' : 'ASC';
+
+      // Calculate pagination
+      const offset = (parseInt(page) - 1) * parseInt(limit);
+
+      const { count, rows: whiskies } = await Whisky.findAndCountAll({
+        where: {
+          approval_status: 'pending'
+        },
+        order: [[orderField, orderDirection]],
+        limit: parseInt(limit),
+        offset,
+        include: [{
+          model: require('../models').Distillery,
+          as: 'distilleryInfo',
+          required: false,
+          attributes: ['id', 'name', 'country', 'region']
+        }]
+      });
+
+      const totalPages = Math.ceil(count / parseInt(limit));
+
+      res.json({
+        whiskies,
+        pagination: {
+          current_page: parseInt(page),
+          total_pages: totalPages,
+          total_count: count,
+          per_page: parseInt(limit),
+          has_next: parseInt(page) < totalPages,
+          has_previous: parseInt(page) > 1
+        }
+      });
+
+    } catch (error) {
+      console.error('Get pending whiskies error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch pending whiskies',
+        message: 'An error occurred while fetching pending whiskies'
+      });
+    }
+  }
+
+  // Approve a specific whisky
+  static async approveWhisky(req, res) {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+
+      const whisky = await Whisky.findByPk(id);
+      if (!whisky) {
+        return res.status(404).json({
+          error: 'Whisky not found',
+          message: 'The specified whisky does not exist'
+        });
+      }
+
+      if (whisky.approval_status !== 'pending') {
+        return res.status(400).json({
+          error: 'Invalid status',
+          message: 'Only pending whiskies can be approved'
+        });
+      }
+
+      await whisky.approve(req.user.id, notes);
+
+      // Fetch updated whisky with relationships
+      const updatedWhisky = await Whisky.findByPk(id, {
+        include: [{
+          model: User,
+          as: 'approvedBy',
+          attributes: ['id', 'username', 'email']
+        }, {
+          model: require('../models').Distillery,
+          as: 'distilleryInfo',
+          required: false,
+          attributes: ['id', 'name', 'country', 'region']
+        }]
+      });
+
+      res.json({
+        message: 'Whisky approved successfully',
+        whisky: updatedWhisky
+      });
+
+    } catch (error) {
+      console.error('Approve whisky error:', error);
+      res.status(500).json({
+        error: 'Failed to approve whisky',
+        message: 'An error occurred while approving the whisky'
+      });
+    }
+  }
+
+  // Reject a specific whisky
+  static async rejectWhisky(req, res) {
+    try {
+      const { id } = req.params;
+      const { notes } = req.body;
+
+      const whisky = await Whisky.findByPk(id);
+      if (!whisky) {
+        return res.status(404).json({
+          error: 'Whisky not found',
+          message: 'The specified whisky does not exist'
+        });
+      }
+
+      if (whisky.approval_status !== 'pending') {
+        return res.status(400).json({
+          error: 'Invalid status',
+          message: 'Only pending whiskies can be rejected'
+        });
+      }
+
+      await whisky.reject(req.user.id, notes);
+
+      // Fetch updated whisky with relationships
+      const updatedWhisky = await Whisky.findByPk(id, {
+        include: [{
+          model: User,
+          as: 'approvedBy',
+          attributes: ['id', 'username', 'email']
+        }, {
+          model: require('../models').Distillery,
+          as: 'distilleryInfo',
+          required: false,
+          attributes: ['id', 'name', 'country', 'region']
+        }]
+      });
+
+      res.json({
+        message: 'Whisky rejected',
+        whisky: updatedWhisky
+      });
+
+    } catch (error) {
+      console.error('Reject whisky error:', error);
+      res.status(500).json({
+        error: 'Failed to reject whisky',
+        message: 'An error occurred while rejecting the whisky'
+      });
+    }
   }
 
   // Import users from data array

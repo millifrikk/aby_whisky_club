@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const WhiskyController = require('../controllers/whiskyController');
-const { authenticateToken, requireAdmin, optionalAuth } = require('../middleware/auth');
+const { authenticateToken, requireAdmin, optionalAuth, checkGuestBrowsing } = require('../middleware/auth');
 const { 
   validateWhiskyCreation, 
   validateUUIDParam,
@@ -10,22 +10,31 @@ const {
 
 // @route   GET /api/whiskies
 // @desc    Get all whiskies with filtering and pagination
-// @access  Public
+// @access  Public (if guest browsing enabled)
 router.get('/', 
   validatePagination,
   optionalAuth,
+  checkGuestBrowsing,
   WhiskyController.getAllWhiskies
 );
 
 // @route   GET /api/whiskies/featured
 // @desc    Get featured whiskies
-// @access  Public
-router.get('/featured', WhiskyController.getFeaturedWhiskies);
+// @access  Public (if guest browsing enabled)
+router.get('/featured', 
+  optionalAuth,
+  checkGuestBrowsing,
+  WhiskyController.getFeaturedWhiskies
+);
 
 // @route   GET /api/whiskies/stats
 // @desc    Get whisky statistics
-// @access  Public
-router.get('/stats', WhiskyController.getWhiskyStats);
+// @access  Public (if guest browsing enabled)
+router.get('/stats', 
+  optionalAuth,
+  checkGuestBrowsing,
+  WhiskyController.getWhiskyStats
+);
 
 // @route   GET /api/whiskies/debug
 // @desc    Debug endpoint to test basic query
@@ -53,10 +62,11 @@ router.get('/debug', async (req, res) => {
 
 // @route   GET /api/whiskies/:id
 // @desc    Get single whisky by ID
-// @access  Public
+// @access  Public (if guest browsing enabled)
 router.get('/:id', 
   validateUUIDParam('id'),
   optionalAuth,
+  checkGuestBrowsing,
   WhiskyController.getWhiskyById
 );
 

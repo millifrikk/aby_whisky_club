@@ -8,6 +8,10 @@ const Rating = require('./Rating');
 const NewsEvent = require('./NewsEvent');
 const EventRSVP = require('./EventRSVP');
 const SystemSetting = require('./SystemSetting');
+const Wishlist = require('./Wishlist');
+const ComparisonSession = require('./ComparisonSession');
+const UserActivity = require('./UserActivity');
+const PerformanceMetric = require('./PerformanceMetric');
 
 // Set up associations
 const models = {
@@ -17,7 +21,11 @@ const models = {
   Rating,
   NewsEvent,
   EventRSVP,
-  SystemSetting
+  SystemSetting,
+  Wishlist,
+  ComparisonSession,
+  UserActivity,
+  PerformanceMetric
 };
 
 // Initialize associations
@@ -53,5 +61,9 @@ module.exports = {
   Rating,
   NewsEvent,
   EventRSVP,
-  SystemSetting
+  SystemSetting,
+  Wishlist,
+  ComparisonSession,
+  UserActivity,
+  PerformanceMetric
 };

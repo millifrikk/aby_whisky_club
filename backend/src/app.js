@@ -10,6 +10,9 @@ const cookieParser = require('cookie-parser');
 const { testConnection, syncDatabase } = require('./models');
 const initializeDatabase = require('./utils/initializeDatabase');
 
+// Import services
+const eventReminderService = require('./services/eventReminderService');
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const whiskyRoutes = require('./routes/whiskies');
@@ -18,6 +21,10 @@ const ratingRoutes = require('./routes/ratings');
 const newsEventRoutes = require('./routes/newsEvents');
 const adminRoutes = require('./routes/admin');
 const settingsRoutes = require('./routes/settings');
+const wishlistRoutes = require('./routes/wishlist');
+const comparisonRoutes = require('./routes/comparison');
+const leaderboardRoutes = require('./routes/leaderboard');
+const analyticsRoutes = require('./routes/analytics');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -55,6 +62,10 @@ app.use('/api/ratings', ratingRoutes);
 app.use('/api/news-events', newsEventRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/settings', settingsRoutes);
+app.use('/api/wishlist', wishlistRoutes);
+app.use('/api/comparison', comparisonRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Basic API info
 app.get('/api', (req, res) => {
@@ -187,11 +198,15 @@ const startServer = async () => {
     // Initialize database (test connection, sync schema, seed if needed)
     await initializeDatabase();
     
+    // Start event reminder service
+    await eventReminderService.startScheduler();
+    
     // Start server
     app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Åby Whisky Club API server running on http://localhost:${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV}`);
       console.log(`🗄️  Database: Connected and ready`);
+      console.log(`📧 Email & Event Reminder Service: Active`);
       console.log(`🔗 API Documentation: http://localhost:${PORT}/api`);
       console.log(`🏥 Health Check: http://localhost:${PORT}/api/health`);
     });
@@ -217,11 +232,13 @@ process.on('uncaughtException', (err) => {
 // Graceful shutdown
 process.on('SIGTERM', () => {
   console.log('SIGTERM received. Shutting down gracefully...');
+  eventReminderService.stopScheduler();
   process.exit(0);
 });
 
 process.on('SIGINT', () => {
   console.log('SIGINT received. Shutting down gracefully...');
+  eventReminderService.stopScheduler();
   process.exit(0);
 });
 

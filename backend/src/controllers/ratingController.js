@@ -1,5 +1,6 @@
 const { Rating, Whisky, User } = require('../models');
 const { Op } = require('sequelize');
+const emailService = require('../services/emailService');
 
 class RatingController {
   // Get ratings for a specific whisky
@@ -227,6 +228,29 @@ class RatingController {
           }
         ]
       });
+
+      // Send rating notification email for new ratings (not updates)
+      if (!isUpdate && whisky.created_by) {
+        try {
+          // Get the whisky owner
+          const whiskyOwner = await User.findByPk(whisky.created_by);
+          
+          if (whiskyOwner && 
+              whiskyOwner.email_notifications_enabled && 
+              whiskyOwner.id !== req.user.id) { // Don't notify if rating own whisky
+            
+            await emailService.sendRatingNotification(
+              whiskyOwner.email,
+              whiskyOwner.first_name || whiskyOwner.username,
+              whisky.name,
+              req.user.first_name || req.user.username
+            );
+          }
+        } catch (emailError) {
+          console.error('Rating notification email error:', emailError);
+          // Don't fail the rating creation if email fails
+        }
+      }
 
       res.status(isUpdate ? 200 : 201).json({
         message: isUpdate ? 'Rating updated successfully' : 'Rating created successfully',

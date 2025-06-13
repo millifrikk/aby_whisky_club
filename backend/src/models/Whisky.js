@@ -105,6 +105,20 @@ const Whisky = sequelize.define('Whisky', {
       min: 0
     }
   },
+  currency_code: {
+    type: DataTypes.STRING(3),
+    allowNull: true,
+    defaultValue: 'USD',
+    validate: {
+      len: [3, 3],
+      isUppercase: true
+    }
+  },
+  currency_symbol: {
+    type: DataTypes.STRING(5),
+    allowNull: true,
+    defaultValue: '$'
+  },
   quantity: {
     type: DataTypes.INTEGER,
     allowNull: false,
@@ -145,6 +159,27 @@ const Whisky = sequelize.define('Whisky', {
     validate: {
       min: 0
     }
+  },
+  approval_status: {
+    type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+    defaultValue: 'approved',
+    allowNull: false
+  },
+  approved_by: {
+    type: DataTypes.UUID,
+    allowNull: true,
+    references: {
+      model: 'users',
+      key: 'id'
+    }
+  },
+  approval_date: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
+  approval_notes: {
+    type: DataTypes.TEXT,
+    allowNull: true
   }
 }, {
   tableName: 'whiskies',
@@ -172,6 +207,9 @@ const Whisky = sequelize.define('Whisky', {
     },
     {
       fields: ['created_at']
+    },
+    {
+      fields: ['approval_status']
     }
   ]
 });
@@ -195,6 +233,34 @@ Whisky.prototype.updateRatingStats = async function() {
   await this.save();
 };
 
+Whisky.prototype.approve = async function(adminUserId, notes = null) {
+  this.approval_status = 'approved';
+  this.approved_by = adminUserId;
+  this.approval_date = new Date();
+  this.approval_notes = notes;
+  await this.save();
+};
+
+Whisky.prototype.reject = async function(adminUserId, notes = null) {
+  this.approval_status = 'rejected';
+  this.approved_by = adminUserId;
+  this.approval_date = new Date();
+  this.approval_notes = notes;
+  await this.save();
+};
+
+Whisky.prototype.isApproved = function() {
+  return this.approval_status === 'approved';
+};
+
+Whisky.prototype.isPending = function() {
+  return this.approval_status === 'pending';
+};
+
+Whisky.prototype.isRejected = function() {
+  return this.approval_status === 'rejected';
+};
+
 // Class methods
 Whisky.associate = function(models) {
   Whisky.hasMany(models.Rating, {
@@ -206,6 +272,18 @@ Whisky.associate = function(models) {
   Whisky.belongsTo(models.Distillery, {
     foreignKey: 'distillery_id',
     as: 'distilleryInfo'
+  });
+  
+  // User association for approval
+  Whisky.belongsTo(models.User, {
+    foreignKey: 'approved_by',
+    as: 'approvedBy'
+  });
+
+  // Wishlist association
+  Whisky.hasMany(models.Wishlist, {
+    foreignKey: 'whisky_id',
+    as: 'wishlistEntries'
   });
 };
 

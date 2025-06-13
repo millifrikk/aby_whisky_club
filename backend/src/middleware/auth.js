@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { User } = require('../models');
+const { User, SystemSetting } = require('../models');
 
 // Generate JWT token
 const generateToken = (payload, expiresIn = process.env.JWT_EXPIRE || '24h') => {
@@ -132,6 +132,36 @@ const optionalAuth = async (req, res, next) => {
   next();
 };
 
+// Middleware to check guest browsing permissions
+const checkGuestBrowsing = async (req, res, next) => {
+  try {
+    // If user is authenticated, allow access
+    if (req.user) {
+      return next();
+    }
+
+    // Check if guest browsing is allowed
+    const allowGuestBrowsing = await SystemSetting.getSetting('allow_guest_browsing', true);
+    
+    if (allowGuestBrowsing) {
+      return next();
+    }
+
+    // Guest browsing is disabled, require authentication
+    return res.status(401).json({
+      error: 'Authentication required',
+      message: 'You must be logged in to view this content'
+    });
+  } catch (error) {
+    console.error('Error checking guest browsing permissions:', error);
+    // Default to requiring authentication if there's an error
+    return res.status(401).json({
+      error: 'Authentication required',
+      message: 'You must be logged in to view this content'
+    });
+  }
+};
+
 module.exports = {
   generateToken,
   verifyToken,
@@ -139,5 +169,6 @@ module.exports = {
   authenticateToken,
   requireAdmin,
   requireMember,
-  optionalAuth
+  optionalAuth,
+  checkGuestBrowsing
 };

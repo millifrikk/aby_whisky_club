@@ -1,13 +1,16 @@
-const { Whisky, Rating, User, Distillery } = require('../models');
+const { Whisky, Rating, User, Distillery, SystemSetting } = require('../models');
 const { Op } = require('sequelize');
 
 class WhiskyController {
   // Get all whiskies with filtering and pagination
   static async getAllWhiskies(req, res) {
     try {
+      // Get page size from admin settings
+      const defaultPageSize = await SystemSetting.getSetting('max_whiskies_per_page', 20);
+      
       const {
         page = 1,
-        limit = 20,
+        limit = defaultPageSize,
         search,
         region,
         type,
@@ -22,6 +25,11 @@ class WhiskyController {
 
       // Build where clause
       const where = {};
+      
+      // Only show approved whiskies to non-admin users
+      if (!req.user || req.user.role !== 'admin') {
+        where.approval_status = 'approved';
+      }
       
       if (available_only === 'true') {
         where.is_available = true;
@@ -183,6 +191,17 @@ class WhiskyController {
         }
       }
 
+      // Check if admin approval is required for new whiskies
+      const requireApproval = await SystemSetting.getSetting('require_admin_approval_whiskies', false);
+      
+      if (requireApproval) {
+        whiskyData.approval_status = 'pending';
+      } else {
+        whiskyData.approval_status = 'approved';
+        whiskyData.approval_date = new Date();
+        whiskyData.approved_by = req.user.id; // Auto-approve by the admin creating it
+      }
+
       const whisky = await Whisky.create(whiskyData);
 
       // Fetch the created whisky with distillery information
@@ -194,9 +213,14 @@ class WhiskyController {
         }]
       });
 
+      const message = requireApproval 
+        ? 'Whisky submitted for admin approval'
+        : 'Whisky created successfully';
+        
       res.status(201).json({
-        message: 'Whisky created successfully',
-        whisky: createdWhisky
+        message,
+        whisky: createdWhisky,
+        requiresApproval: requireApproval
       });
 
     } catch (error) {
@@ -325,7 +349,9 @@ class WhiskyController {
   // Get featured whiskies
   static async getFeaturedWhiskies(req, res) {
     try {
-      const { limit = 6 } = req.query;
+      // Get featured count from admin settings
+      const defaultFeaturedCount = await SystemSetting.getSetting('featured_whiskies_count', 6);
+      const { limit = defaultFeaturedCount } = req.query;
 
       // Try the most basic query first
       const whiskies = await Whisky.findAll({
