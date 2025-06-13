@@ -3,12 +3,16 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
+import useAppearance from '../../hooks/useAppearance';
+import { useComparison } from '../../contexts/ComparisonContext';
 
 const Navigation = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, isAuthenticated, logout } = useAuth();
   const { t } = useTranslation();
+  const { siteLogoUrl, siteName } = useAppearance();
+  const { selectionCount, canCompare } = useComparison();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -26,30 +30,69 @@ const Navigation = () => {
     { name: t('navigation.whiskies'), path: '/whiskies', public: true },
     { name: t('navigation.events'), path: '/events', public: true },
     { name: t('navigation.ratings'), path: '/ratings', public: true },
+    { name: t('navigation.members'), path: '/members', public: false },
+    { name: t('navigation.wishlist'), path: '/wishlist', public: false },
   ];
 
+  // Add comparison link with badge if user has selections
+  const comparisonItem = selectionCount > 0 ? {
+    name: `Compare (${selectionCount})`,
+    path: '/comparison',
+    public: false,
+    special: true
+  } : null;
+
+  // Filter navigation items based on authentication status
+  const visibleNavItems = navItems.filter(item => item.public || isAuthenticated);
+  
+  // Add comparison item if user has selections
+  if (comparisonItem && isAuthenticated) {
+    visibleNavItems.push(comparisonItem);
+  }
+
   return (
-    <header className="bg-amber-800 text-white shadow-lg">
+    <header className="bg-primary text-white shadow-lg">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6">
           {/* Logo */}
           <div className="flex items-center">
-            <Link to="/" className="text-3xl font-bold text-amber-100 hover:text-white transition-colors">
-              Åby Whisky Club
+            <Link to="/" className="flex items-center space-x-3 hover:opacity-90 transition-opacity">
+              {siteLogoUrl ? (
+                <>
+                  <img 
+                    src={siteLogoUrl} 
+                    alt={siteName}
+                    className="h-10 w-auto"
+                    onError={(e) => {
+                      // Fallback to text if image fails to load
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                  <span className="text-3xl font-bold text-amber-100 hover:text-white transition-colors">
+                    {siteName}
+                  </span>
+                </>
+              ) : (
+                <span className="text-3xl font-bold text-amber-100 hover:text-white transition-colors">
+                  {siteName}
+                </span>
+              )}
             </Link>
           </div>
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
             <LanguageSelector />
-            {navItems.map((item) => (
+            {visibleNavItems.map((item) => (
               <Link
                 key={item.path}
                 to={item.path}
                 className={`transition-colors ${
-                  isActive(item.path)
-                    ? 'text-white border-b-2 border-amber-300 pb-1'
-                    : 'text-amber-100 hover:text-white'
+                  item.special 
+                    ? 'bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700'
+                    : isActive(item.path)
+                      ? 'text-white border-b-2 border-amber-300 pb-1'
+                      : 'text-amber-100 hover:text-white'
                 }`}
               >
                 {item.name}
@@ -104,7 +147,7 @@ const Navigation = () => {
                 </Link>
                 <Link
                   to="/register"
-                  className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors"
+                  className="bg-primary-dark text-white px-4 py-2 rounded-md hover:bg-primary transition-colors"
                 >
                   {t('navigation.register')}
                 </Link>
@@ -136,7 +179,7 @@ const Navigation = () => {
               <div className="px-3 py-2">
                 <LanguageSelector />
               </div>
-              {navItems.map((item) => (
+              {visibleNavItems.map((item) => (
                 <Link
                   key={item.path}
                   to={item.path}
@@ -192,7 +235,7 @@ const Navigation = () => {
                   <Link
                     to="/register"
                     onClick={() => setMobileMenuOpen(false)}
-                    className="block px-3 py-2 rounded-md bg-amber-600 text-white hover:bg-amber-700 transition-colors"
+                    className="block px-3 py-2 rounded-md bg-primary-dark text-white hover:bg-primary transition-colors"
                   >
                     {t('navigation.register')}
                   </Link>

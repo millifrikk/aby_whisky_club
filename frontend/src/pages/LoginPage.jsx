@@ -3,12 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
+import useUserManagement from '../hooks/useUserManagement';
 
 const LoginPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, loading } = useAuth();
   const { t } = useTranslation();
+  const { allowRegistration } = useUserManagement();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -43,15 +45,22 @@ const LoginPage = () => {
             <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
               {t('auth.welcome_back')}
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Or{' '}
-              <Link
-                to="/register"
-                className="font-medium text-amber-600 hover:text-amber-500"
-              >
-                {t('auth.join_club')}
-              </Link>
-            </p>
+            {allowRegistration && (
+              <p className="mt-2 text-sm text-gray-600">
+                Or{' '}
+                <Link
+                  to="/register"
+                  className="font-medium text-amber-600 hover:text-amber-500"
+                >
+                  {t('auth.join_club')}
+                </Link>
+              </p>
+            )}
+            {!allowRegistration && (
+              <p className="mt-2 text-sm text-gray-500">
+                {t('auth.registration_disabled')}
+              </p>
+            )}
           </div>
         </div>
 

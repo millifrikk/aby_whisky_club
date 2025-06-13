@@ -4,11 +4,13 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { authAPI } from '../services/api';
 import WhiskyImage from '../components/common/WhiskyImage';
+import useUserManagement from '../hooks/useUserManagement';
 import toast from 'react-hot-toast';
 
 const ProfilePage = () => {
   const { user, updateProfile } = useAuth();
   const { t } = useTranslation();
+  const { allowPublicProfiles, enableUserAvatars } = useUserManagement();
   const [userRatings, setUserRatings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
@@ -128,7 +130,7 @@ const ProfilePage = () => {
           <div className="bg-white rounded-lg shadow-md p-6">
             {/* Profile Image */}
             <div className="text-center mb-6">
-              {user?.profile_image ? (
+              {enableUserAvatars && user?.profile_image ? (
                 <img
                   src={user.profile_image}
                   alt={getDisplayName(user)}
@@ -178,6 +180,27 @@ const ProfilePage = () => {
 
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-8">
+          {/* Privacy Notice */}
+          {!allowPublicProfiles && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-center">
+                <div className="flex-shrink-0">
+                  <svg className="h-5 w-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <h3 className="text-sm font-medium text-blue-800">
+                    Private Profile Mode
+                  </h3>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Your profile is currently private. Other members cannot view your ratings and activity.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Statistics Cards */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-6 rounded-lg shadow-md">

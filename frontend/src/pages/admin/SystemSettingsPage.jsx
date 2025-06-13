@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useSettings } from '../../contexts/SettingsContext';
 import { adminAPI } from '../../services/api';
 import toast from 'react-hot-toast';
+import CurrencyManagementPanel from '../../components/admin/CurrencyManagementPanel';
+import LocalizationTestPanel from '../../components/admin/LocalizationTestPanel';
 
 const SystemSettingsPage = () => {
   const { isAdmin } = useAuth();
+  const { refreshSettings } = useSettings();
   const [settingsByCategory, setSettingsByCategory] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
@@ -51,6 +55,9 @@ const SystemSettingsPage = () => {
       setSaving(prev => ({ ...prev, [key]: true }));
       await adminAPI.updateSystemSetting(key, { value });
       toast.success('Setting updated successfully');
+      
+      // Refresh global settings context for immediate UI updates
+      refreshSettings();
       
       // Remove from edited values
       setEditedValues(prev => {
@@ -271,6 +278,14 @@ const SystemSettingsPage = () => {
               <span className="text-2xl mr-3">{getCategoryIcon(category)}</span>
               {category.charAt(0).toUpperCase() + category.slice(1)} Settings
             </h2>
+
+            {/* Enhanced Currency Management for Localization Category */}
+            {category === 'localization' && (
+              <div className="space-y-6 mb-6">
+                <CurrencyManagementPanel />
+                <LocalizationTestPanel />
+              </div>
+            )}
 
             <div className="space-y-6">
               {settingsByCategory[category].map(setting => {

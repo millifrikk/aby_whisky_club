@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { ratingAPI } from '../../services/api';
+import useContentSettings from '../../hooks/useContentSettings';
 import toast from 'react-hot-toast';
 
 const RatingForm = ({ whisky, userRating, onRatingSubmitted, onCancel }) => {
   const { user } = useAuth();
+  const { maxRatingScale, tastingNotesRequired } = useContentSettings();
   const [formData, setFormData] = useState({
     whisky_id: whisky.id,
     overall_score: userRating?.overall_score || '',
@@ -17,7 +19,7 @@ const RatingForm = ({ whisky, userRating, onRatingSubmitted, onCancel }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleScoreChange = (field, value) => {
-    const numValue = value === '' ? '' : Math.min(10, Math.max(0, parseFloat(value)));
+    const numValue = value === '' ? '' : Math.min(maxRatingScale, Math.max(0, parseFloat(value)));
     setFormData(prev => ({
       ...prev,
       [field]: numValue
@@ -32,8 +34,13 @@ const RatingForm = ({ whisky, userRating, onRatingSubmitted, onCancel }) => {
       return;
     }
 
-    if (formData.overall_score < 0 || formData.overall_score > 10) {
-      toast.error('Overall score must be between 0 and 10');
+    if (formData.overall_score < 0 || formData.overall_score > maxRatingScale) {
+      toast.error(`Overall score must be between 0 and ${maxRatingScale}`);
+      return;
+    }
+
+    if (tastingNotesRequired && (!formData.review_text || formData.review_text.trim().length === 0)) {
+      toast.error('Tasting notes are required');
       return;
     }
 
@@ -76,16 +83,16 @@ const RatingForm = ({ whisky, userRating, onRatingSubmitted, onCancel }) => {
         <input
           type="number"
           min="0"
-          max="10"
+          max={maxRatingScale}
           step="0.1"
           value={formData[field]}
           onChange={(e) => handleScoreChange(field, e.target.value)}
           className="block w-full px-3 py-2 pr-12 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          placeholder="0-10"
+          placeholder={`0-${maxRatingScale}`}
           required={field === 'overall_score'}
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          <span className="text-gray-500 text-sm">/10</span>
+          <span className="text-gray-500 text-sm">/{maxRatingScale}</span>
         </div>
       </div>
     </div>
@@ -147,10 +154,14 @@ const RatingForm = ({ whisky, userRating, onRatingSubmitted, onCancel }) => {
         {/* Review Text */}
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
-            Tasting Notes (Optional)
+            Tasting Notes {tastingNotesRequired && <span className="text-red-500 ml-1">*</span>}
+            {!tastingNotesRequired && <span className="text-gray-500">(Optional)</span>}
           </label>
           <p className="text-xs text-gray-500 mb-2">
-            Share your thoughts about this whisky
+            {tastingNotesRequired 
+              ? 'Please describe your tasting experience (required)' 
+              : 'Share your thoughts about this whisky'
+            }
           </p>
           <textarea
             value={formData.review_text}
@@ -158,6 +169,7 @@ const RatingForm = ({ whisky, userRating, onRatingSubmitted, onCancel }) => {
             rows={4}
             className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
             placeholder="Describe the flavors, aromas, and your overall experience..."
+            required={tastingNotesRequired}
           />
         </div>
 
@@ -191,11 +203,11 @@ const RatingForm = ({ whisky, userRating, onRatingSubmitted, onCancel }) => {
       <div className="mt-6 p-4 bg-amber-50 rounded-md">
         <h5 className="text-sm font-medium text-amber-800 mb-2">Rating Guidelines</h5>
         <div className="text-xs text-amber-700 space-y-1">
-          <div><strong>9-10:</strong> Exceptional, world-class whisky</div>
-          <div><strong>7-8:</strong> Very good, would recommend</div>
-          <div><strong>5-6:</strong> Average, decent whisky</div>
-          <div><strong>3-4:</strong> Below average, has issues</div>
-          <div><strong>1-2:</strong> Poor, not recommended</div>
+          <div><strong>{Math.round(maxRatingScale * 0.9)}-{maxRatingScale}:</strong> Exceptional, world-class whisky</div>
+          <div><strong>{Math.round(maxRatingScale * 0.7)}-{Math.round(maxRatingScale * 0.8)}:</strong> Very good, would recommend</div>
+          <div><strong>{Math.round(maxRatingScale * 0.5)}-{Math.round(maxRatingScale * 0.6)}:</strong> Average, decent whisky</div>
+          <div><strong>{Math.round(maxRatingScale * 0.3)}-{Math.round(maxRatingScale * 0.4)}:</strong> Below average, has issues</div>
+          <div><strong>{Math.round(maxRatingScale * 0.1)}-{Math.round(maxRatingScale * 0.2)}:</strong> Poor, not recommended</div>
         </div>
       </div>
     </div>

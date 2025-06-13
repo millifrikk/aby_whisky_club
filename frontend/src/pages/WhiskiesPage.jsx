@@ -4,11 +4,28 @@ import { whiskyAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import WhiskyImage from '../components/common/WhiskyImage';
+import WishlistButton from '../components/common/WishlistButton';
+import ComparisonButton from '../components/common/ComparisonButton';
+import { useCurrency, formatPriceWithCurrency } from '../utils/currency';
+import useRatingDisplay from '../hooks/useRatingDisplay';
 import toast from 'react-hot-toast';
 
 const WhiskiesPage = () => {
   const { isAdmin } = useAuth();
   const { t } = useTranslation();
+  const { formatPrice } = useCurrency();
+  const { formatRatingSimple } = useRatingDisplay();
+
+  // Helper function to format prices using whisky's stored currency
+  const formatWhiskyPrice = (whisky, amount) => {
+    if (!amount) return '';
+    
+    // Use whisky's stored currency if available, otherwise fall back to global currency
+    const currencySymbol = whisky.currency_symbol || formatPrice(amount).replace(/[\d.,\s]/g, '');
+    const currencyCode = whisky.currency_code || 'USD';
+    
+    return formatPriceWithCurrency(amount, currencySymbol, currencyCode);
+  };
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [whiskies, setWhiskies] = useState([]);
@@ -120,7 +137,7 @@ const WhiskiesPage = () => {
         {isAdmin() && (
           <Link
             to="/admin/whiskies/new"
-            className="bg-amber-600 text-white px-4 py-2 rounded-md hover:bg-amber-700 transition-colors"
+            className="bg-primary text-white px-4 py-2 rounded-md hover:bg-primary-dark transition-colors"
           >
             {t('whisky.add_whisky')}
           </Link>
@@ -349,7 +366,7 @@ const WhiskiesPage = () => {
                   {whisky.rating_average > 0 && (
                     <div className="flex items-center mb-4">
                       <span className="text-amber-500">★</span>
-                      <span className="ml-1 text-sm font-medium">{whisky.rating_average}/10</span>
+                      <span className="ml-1 text-sm font-medium">{formatRatingSimple(whisky.rating_average)}</span>
                       <span className="ml-2 text-xs text-gray-500">
                         ({whisky.rating_count} rating{whisky.rating_count !== 1 ? 's' : ''})
                       </span>
@@ -362,6 +379,24 @@ const WhiskiesPage = () => {
                     </p>
                   )}
 
+                  {/* Wishlist and Comparison Actions */}
+                  <div className="flex justify-between items-center mb-3">
+                    <div className="flex space-x-2">
+                      <WishlistButton 
+                        whisky={whisky} 
+                        variant="icon" 
+                        size="sm" 
+                        showText={false}
+                      />
+                      <ComparisonButton 
+                        whisky={whisky} 
+                        variant="checkbox" 
+                        size="sm" 
+                        showText={false}
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex justify-between items-center">
                     <Link
                       to={`/whiskies/${whisky.id}`}
@@ -373,7 +408,7 @@ const WhiskiesPage = () => {
                     <div className="flex items-center space-x-2">
                       {whisky.current_price && (
                         <span className="text-sm font-medium text-gray-900">
-                          ${whisky.current_price}
+                          {formatWhiskyPrice(whisky, whisky.current_price)}
                         </span>
                       )}
                       
@@ -424,6 +459,9 @@ const WhiskiesPage = () => {
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Rating
                       </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        
+                      </th>
                       {isAdmin() && (
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
@@ -466,12 +504,28 @@ const WhiskiesPage = () => {
                           {whisky.rating_average > 0 ? (
                             <div className="flex items-center">
                               <span className="text-amber-500">★</span>
-                              <span className="ml-1 font-medium">{whisky.rating_average}/10</span>
+                              <span className="ml-1 font-medium">{formatRatingSimple(whisky.rating_average)}</span>
                               <span className="ml-2 text-gray-500">({whisky.rating_count || 0})</span>
                             </div>
                           ) : (
                             <span className="text-gray-400">No ratings</span>
                           )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <div className="flex space-x-1">
+                            <WishlistButton 
+                              whisky={whisky} 
+                              variant="icon" 
+                              size="sm" 
+                              showText={false}
+                            />
+                            <ComparisonButton 
+                              whisky={whisky} 
+                              variant="checkbox" 
+                              size="sm" 
+                              showText={false}
+                            />
+                          </div>
                         </td>
                         {isAdmin() && (
                           <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">

@@ -2,13 +2,45 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { whiskyAPI, ratingAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrency, formatPriceWithCurrency } from '../utils/currency';
+import { useDateTime } from '../utils/dateTime';
 import toast from 'react-hot-toast';
 import RatingForm from '../components/common/RatingForm';
+import WishlistButton from '../components/common/WishlistButton';
+import ComparisonButton from '../components/common/ComparisonButton';
+import useUserManagement from '../hooks/useUserManagement';
+import useActivityTracking from '../hooks/useActivityTracking';
 
 const WhiskyDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated, isAdmin } = useAuth();
+  const { formatPrice } = useCurrency();
+  const { formatDate, formatRelativeTime, formatPurchaseDate } = useDateTime();
+  const { allowPublicProfiles } = useUserManagement();
+  const { trackWhiskyView } = useActivityTracking();
+
+  // Helper function to display username respecting privacy settings
+  const getDisplayName = (ratingUser) => {
+    if (!ratingUser) return 'Anonymous';
+    
+    if (allowPublicProfiles) {
+      return ratingUser.first_name || ratingUser.username || 'Member';
+    }
+    
+    return 'Member'; // Hide username when public profiles disabled
+  };
+
+  // Helper function to format prices using whisky's stored currency
+  const formatWhiskyPrice = (amount) => {
+    if (!whisky || !amount) return '';
+    
+    // Use whisky's stored currency if available, otherwise fall back to global currency
+    const currencySymbol = whisky.currency_symbol || formatPrice(amount).replace(/[\d.,\s]/g, '');
+    const currencyCode = whisky.currency_code || 'USD';
+    
+    return formatPriceWithCurrency(amount, currencySymbol, currencyCode);
+  };
   const [whisky, setWhisky] = useState(null);
   const [ratings, setRatings] = useState([]);
   const [ratingStats, setRatingStats] = useState({});
@@ -34,6 +66,9 @@ const WhiskyDetailPage = () => {
       setWhisky(whiskyData);
       setRatings(ratingsData.ratings || []);
       setRatingStats(ratingsData.statistics || {});
+
+      // Track whisky view
+      trackWhiskyView(id);
 
       // Find user's rating if authenticated
       if (user) {
@@ -254,13 +289,13 @@ const WhiskyDetailPage = () => {
                     <div className="flex justify-between items-start mb-2">
                       <div>
                         <div className="font-medium">
-                          {rating.user?.first_name || rating.user?.username}
+                          {getDisplayName(rating.user)}
                           {rating.user_id === user?.id && (
                             <span className="text-xs text-amber-600 ml-2">(Your Rating)</span>
                           )}
                         </div>
                         <div className="text-sm text-gray-500">
-                          {new Date(rating.created_at).toLocaleDateString()}
+                          {formatRelativeTime(rating.created_at)}
                         </div>
                       </div>
                       <div className="text-lg font-semibold text-amber-600">
@@ -348,7 +383,7 @@ const WhiskyDetailPage = () => {
                 <div className="flex justify-between">
                   <span className="text-gray-600">Acquired:</span>
                   <span className="font-medium">
-                    {new Date(whisky.purchase_date).toLocaleDateString()}
+                    {formatPurchaseDate(whisky.purchase_date)}
                   </span>
                 </div>
               )}
@@ -356,14 +391,14 @@ const WhiskyDetailPage = () => {
               {whisky.purchase_price && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Purchase Price:</span>
-                  <span className="font-medium">${whisky.purchase_price}</span>
+                  <span className="font-medium">{formatWhiskyPrice(whisky.purchase_price)}</span>
                 </div>
               )}
               
               {whisky.current_price && (
                 <div className="flex justify-between">
                   <span className="text-gray-600">Current Value:</span>
-                  <span className="font-medium">${whisky.current_price}</span>
+                  <span className="font-medium">{formatWhiskyPrice(whisky.current_price)}</span>
                 </div>
               )}
               
@@ -376,7 +411,7 @@ const WhiskyDetailPage = () => {
                       : 'text-red-600'
                   }`}>
                     {whisky.current_price >= whisky.purchase_price ? '+' : ''}
-                    ${(whisky.current_price - whisky.purchase_price).toFixed(2)}
+                    {formatWhiskyPrice(whisky.current_price - whisky.purchase_price)}
                   </span>
                 </div>
               )}
@@ -395,6 +430,24 @@ const WhiskyDetailPage = () => {
                 >
                   {userRating ? 'Update Rating' : 'Rate This Whisky'}
                 </button>
+              )}
+              
+              {/* Wishlist Button */}
+              {whisky && (
+                <WishlistButton 
+                  whisky={whisky} 
+                  className="w-full"
+                  size="md"
+                />
+              )}
+              
+              {/* Comparison Button */}
+              {whisky && (
+                <ComparisonButton 
+                  whisky={whisky} 
+                  className="w-full"
+                  size="md"
+                />
               )}
               
               <Link

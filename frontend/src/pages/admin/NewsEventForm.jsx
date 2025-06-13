@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { newsEventAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
+import { useCurrency } from '../../utils/currency';
 import toast from 'react-hot-toast';
 
 const NewsEventForm = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { symbol: currencySymbol } = useCurrency();
   const isEditing = !!id;
   const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(isEditing);
@@ -383,7 +385,7 @@ const NewsEventForm = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Price ($)
+                    Price ({currencySymbol})
                   </label>
                   <input
                     type="number"

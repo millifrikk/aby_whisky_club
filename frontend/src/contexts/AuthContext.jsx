@@ -79,17 +79,46 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
       const response = await authAPI.register(userData);
-      const { user: newUser, token } = response.data;
+      const { 
+        user: newUser, 
+        token, 
+        requiresApproval, 
+        requiresEmailVerification,
+        approvalMessage,
+        verificationMessage 
+      } = response.data;
 
-      // Store token and user data
-      localStorage.setItem('token', token);
-      localStorage.setItem('user', JSON.stringify(newUser));
+      if (requiresApproval) {
+        // Registration requires approval - don't log the user in
+        toast.success('Registration submitted successfully. Please wait for approval.');
+        return { 
+          success: true, 
+          user: newUser, 
+          requiresApproval: true,
+          requiresEmailVerification,
+          approvalMessage 
+        };
+      } else if (requiresEmailVerification) {
+        // Email verification required - don't log the user in
+        toast.success('Registration successful. Please verify your email.');
+        return {
+          success: true,
+          user: newUser,
+          requiresApproval: false,
+          requiresEmailVerification: true,
+          verificationMessage
+        };
+      } else {
+        // Normal registration - log the user in
+        localStorage.setItem('token', token);
+        localStorage.setItem('user', JSON.stringify(newUser));
 
-      setUser(newUser);
-      setIsAuthenticated(true);
-      
-      toast.success(`Welcome to Åby Whisky Club, ${newUser.first_name || newUser.username}!`);
-      return { success: true, user: newUser };
+        setUser(newUser);
+        setIsAuthenticated(true);
+        
+        toast.success(`Welcome to Åby Whisky Club, ${newUser.first_name || newUser.username}!`);
+        return { success: true, user: newUser, requiresApproval: false, requiresEmailVerification: false };
+      }
     } catch (error) {
       const message = error.response?.data?.message || 'Registration failed';
       toast.error(message);

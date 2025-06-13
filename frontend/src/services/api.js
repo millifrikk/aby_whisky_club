@@ -47,6 +47,7 @@ export const authAPI = {
   changePassword: (data) => api.put('/auth/change-password', data),
   refreshToken: () => api.post('/auth/refresh'),
   logout: () => api.post('/auth/logout'),
+  getMemberDirectory: () => api.get('/auth/users/directory'),
 };
 
 // Whisky API
@@ -113,6 +114,51 @@ export const healthAPI = {
 // Public Settings API (for non-admin access to public settings)
 export const settingsAPI = {
   getPublicSettings: (params) => api.get('/settings/public', { params }),
+};
+
+// Wishlist API
+export const wishlistAPI = {
+  getUserWishlist: (userId, params) => api.get(`/wishlist/user/${userId}`, { params }),
+  addToWishlist: (data) => api.post('/wishlist', data),
+  removeFromWishlist: (id) => api.delete(`/wishlist/${id}`),
+  updateWishlistItem: (id, data) => api.put(`/wishlist/${id}`, data),
+  checkWishlistStatus: (whiskyId) => api.get(`/wishlist/status/${whiskyId}`),
+};
+
+// Comparison API
+export const comparisonAPI = {
+  getUserSessions: (userId, params) => api.get(`/comparison/sessions/user/${userId}`, { params }),
+  createSession: (data) => api.post('/comparison/sessions', data),
+  getSession: (id) => api.get(`/comparison/sessions/${id}`),
+  updateSession: (id, data) => api.put(`/comparison/sessions/${id}`, data),
+  deleteSession: (id) => api.delete(`/comparison/sessions/${id}`),
+  compareWhiskies: (whiskyIds) => api.get('/comparison/compare', { 
+    params: { ids: Array.isArray(whiskyIds) ? whiskyIds.join(',') : whiskyIds } 
+  }),
+};
+
+// Leaderboard API
+export const leaderboardAPI = {
+  getTopRaters: (params) => api.get('/leaderboard/raters', { params }),
+  getTopWhiskies: (params) => api.get('/leaderboard/whiskies', { params }),
+  getStats: () => api.get('/leaderboard/stats')
+};
+
+// Analytics API
+export const analyticsAPI = {
+  // Activity tracking
+  trackActivity: (data) => api.post('/analytics/activity', data),
+  
+  // Performance tracking
+  recordPerformanceMetric: (data) => api.post('/analytics/performance', data),
+  
+  // Admin analytics endpoints
+  getActivityAnalytics: (params) => api.get('/analytics/activity/analytics', { params }),
+  getPerformanceAnalytics: (params) => api.get('/analytics/performance/analytics', { params }),
+  getTopEntities: (params) => api.get('/analytics/top-entities', { params }),
+  getSystemHealth: () => api.get('/analytics/system-health'),
+  getSlowEndpoints: (params) => api.get('/analytics/slow-endpoints', { params }),
+  cleanOldData: (data) => api.post('/analytics/cleanup', data)
 };
 
 export default api;

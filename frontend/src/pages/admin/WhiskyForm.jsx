@@ -6,12 +6,23 @@ import { useAuth } from '../../contexts/AuthContext';
 import DistillerySelector from '../../components/common/DistillerySelector';
 import NewDistilleryModal from '../../components/common/NewDistilleryModal';
 import SearchableCountrySelector from '../../components/common/SearchableCountrySelector';
+import CurrencyConversionPanel from '../../components/common/CurrencyConversionPanel';
+import { useCurrency } from '../../utils/currency';
+import { useUnits } from '../../utils/units';
+import { useCurrencyConverter } from '../../utils/currencyConversion';
+import { useSettings } from '../../contexts/SettingsContext';
+import useContentSettings from '../../hooks/useContentSettings';
 import toast from 'react-hot-toast';
 
 const WhiskyForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { isAdmin } = useAuth();
+  const { symbol: currencySymbol, code: currencyCode, isLoaded: currencyLoaded } = useCurrency();
+  const { volumeUnit } = useUnits();
+  const { converter, isReady: converterReady, getAvailableCurrencies } = useCurrencyConverter();
+  const { settings } = useSettings();
+  const { defaultWhiskyBottleSize, loading: contentSettingsLoading } = useContentSettings();
   const [loading, setLoading] = useState(false);
   const [whisky, setWhisky] = useState(null);
   const [showNewDistilleryModal, setShowNewDistilleryModal] = useState(false);
@@ -48,8 +59,10 @@ const WhiskyForm = () => {
       purchase_date: '',
       purchase_price: '',
       current_price: '',
+      currency_code: 'USD',  // Will be updated when settings load
+      currency_symbol: '$', // Will be updated when settings load
       quantity: 1,
-      bottle_size: 700,
+      bottle_size: defaultWhiskyBottleSize || 700,
       image_url: '',
       is_available: true,
       is_featured: false
@@ -66,6 +79,45 @@ const WhiskyForm = () => {
       loadWhisky();
     }
   }, [id, isAdmin, navigate]);
+
+  // Set default currency for new whiskies
+  useEffect(() => {
+    console.log('💰 Currency effect:', { 
+      isEdit, 
+      currencyLoaded, 
+      currencyCode, 
+      currencySymbol,
+      shouldUpdate: !isEdit && currencyLoaded && currencyCode && currencySymbol
+    });
+    
+    if (!isEdit && currencyLoaded && currencyCode && currencySymbol) {
+      console.log('💰 Setting currency to:', currencyCode, currencySymbol);
+      setValue('currency_code', currencyCode);
+      setValue('currency_symbol', currencySymbol);
+      
+      // Force the form to re-render with new values
+      reset((formValues) => ({
+        ...formValues,
+        currency_code: currencyCode,
+        currency_symbol: currencySymbol
+      }));
+    }
+  }, [isEdit, currencyLoaded, currencyCode, currencySymbol, setValue, reset]);
+
+  // Set default bottle size for new whiskies
+  useEffect(() => {
+    console.log('🍾 Bottle size effect:', { 
+      isEdit, 
+      defaultWhiskyBottleSize, 
+      contentSettingsLoading,
+      shouldUpdate: !isEdit && defaultWhiskyBottleSize && !contentSettingsLoading
+    });
+    
+    if (!isEdit && defaultWhiskyBottleSize && !contentSettingsLoading) {
+      console.log('🍾 Setting bottle size to:', defaultWhiskyBottleSize);
+      setValue('bottle_size', defaultWhiskyBottleSize);
+    }
+  }, [isEdit, defaultWhiskyBottleSize, contentSettingsLoading, setValue]);
 
   const loadWhisky = async () => {
     try {
@@ -132,6 +184,8 @@ const WhiskyForm = () => {
         abv: data.abv ? parseFloat(data.abv) : null,
         purchase_price: data.purchase_price ? parseFloat(data.purchase_price) : null,
         current_price: data.current_price ? parseFloat(data.current_price) : null,
+        currency_code: data.currency_code || currencyCode,
+        currency_symbol: data.currency_symbol || currencySymbol,
         quantity: parseInt(data.quantity) || 1,
         bottle_size: parseInt(data.bottle_size) || 700,
         purchase_date: data.purchase_date || null,
@@ -493,7 +547,7 @@ const WhiskyForm = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Purchase Price ($)
+                Purchase Price ({watch('currency_symbol') || currencySymbol || '...'})
               </label>
               <input
                 {...register('purchase_price', { 
@@ -511,7 +565,7 @@ const WhiskyForm = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Current Price ($)
+                Current Price ({watch('currency_symbol') || currencySymbol || '...'})
               </label>
               <input
                 {...register('current_price', { 
@@ -526,6 +580,87 @@ const WhiskyForm = () => {
                 <p className="mt-1 text-sm text-red-600">{errors.current_price.message}</p>
               )}
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Currency
+              </label>
+              <select
+                {...register('currency_code')}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+                onChange={(e) => {
+                  const currencyCode = e.target.value;
+                  let currencySymbol = '$'; // default fallback
+                  
+                  if (converterReady) {
+                    const selectedCurrency = getAvailableCurrencies().find(c => c.code === currencyCode);
+                    if (selectedCurrency) {
+                      currencySymbol = selectedCurrency.symbol;
+                    }
+                  } else {
+                    // Manual mapping for common currencies
+                    switch (currencyCode) {
+                      case 'USD': currencySymbol = '$'; break;
+                      case 'SEK': currencySymbol = 'Kr'; break;
+                      case 'EUR': currencySymbol = '€'; break;
+                      case 'GBP': currencySymbol = '£'; break;
+                      default: currencySymbol = '$';
+                    }
+                  }
+                  
+                  setValue('currency_code', currencyCode);
+                  setValue('currency_symbol', currencySymbol);
+                }}
+              >
+                {converterReady ? (
+                  getAvailableCurrencies().map(currency => (
+                    <option key={currency.code} value={currency.code}>
+                      {currency.symbol} {currency.code} - {currency.name}
+                    </option>
+                  ))
+                ) : (
+                  // Fallback when converter is not ready - show common currencies
+                  <>
+                    <option value="USD">$ USD - US Dollar</option>
+                    <option value="SEK">Kr SEK - Swedish Krona</option>
+                    <option value="EUR">€ EUR - Euro</option>
+                    <option value="GBP">£ GBP - British Pound</option>
+                  </>
+                )}
+              </select>
+              <p className="mt-1 text-sm text-gray-500">
+                {isEdit ? 'Original currency for this whisky' : 'Default from admin settings'}
+              </p>
+            </div>
+
+            {/* Currency Conversion for Edit Mode */}
+            {isEdit && (
+              <div className="col-span-full">
+                {converterReady && watch('currency_code') ? (
+                  <CurrencyConversionPanel 
+                    currentCurrency={watch('currency_code')}
+                    currentSymbol={watch('currency_symbol')}
+                    purchasePrice={watch('purchase_price')}
+                    currentPrice={watch('current_price')}
+                    availableCurrencies={getAvailableCurrencies()}
+                    converter={converter}
+                    onConvert={(convertedData) => {
+                      setValue('purchase_price', convertedData.purchasePrice);
+                      setValue('current_price', convertedData.currentPrice);
+                      setValue('currency_code', convertedData.newCurrencyCode);
+                      setValue('currency_symbol', convertedData.newCurrencySymbol);
+                    }}
+                  />
+                ) : (
+                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                    <div className="text-sm text-gray-600">
+                      {!converterReady && "Loading currency converter..."}
+                      {converterReady && !watch('currency_code') && "Currency data loading..."}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -547,20 +682,20 @@ const WhiskyForm = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bottle Size (ml)
+                Bottle Size ({volumeUnit})
               </label>
               <select
                 {...register('bottle_size')}
                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-amber-500 focus:border-amber-500"
               >
-                <option value="50">50ml (Miniature)</option>
-                <option value="200">200ml</option>
-                <option value="375">375ml (Half Bottle)</option>
-                <option value="500">500ml</option>
-                <option value="700">700ml (Standard)</option>
-                <option value="750">750ml</option>
-                <option value="1000">1000ml (1L)</option>
-                <option value="1750">1750ml (1.75L)</option>
+                <option value="50">50{volumeUnit} (Miniature)</option>
+                <option value="200">200{volumeUnit}</option>
+                <option value="375">375{volumeUnit} (Half Bottle)</option>
+                <option value="500">500{volumeUnit}</option>
+                <option value="700">700{volumeUnit}{defaultWhiskyBottleSize === 700 ? ' (Default)' : ''}</option>
+                <option value="750">750{volumeUnit}{defaultWhiskyBottleSize === 750 ? ' (Default)' : ''}</option>
+                <option value="1000">1000{volumeUnit} (1L)</option>
+                <option value="1750">1750{volumeUnit} (1.75L)</option>
               </select>
             </div>
 

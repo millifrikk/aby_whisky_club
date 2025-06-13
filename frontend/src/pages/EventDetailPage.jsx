@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { newsEventAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
+import { useCurrency } from '../utils/currency';
 import toast from 'react-hot-toast';
 
 const EventDetailPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { formatPrice } = useCurrency();
   const [item, setItem] = useState(null);
   const [attendees, setAttendees] = useState([]);
   const [userRSVP, setUserRSVP] = useState(null);
@@ -278,7 +280,7 @@ const EventDetailPage = () => {
                   <span className="text-xl mr-3">💰</span>
                   <div>
                     <h3 className="font-medium text-gray-900 mb-1">Price</h3>
-                    <p className="text-gray-600">${item.price}</p>
+                    <p className="text-gray-600">{formatPrice(item.price)}</p>
                   </div>
                 </div>
               )}

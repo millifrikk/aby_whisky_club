@@ -20,6 +20,8 @@
     "whiskies": "Whisky",
     "ratings": "Mina Betyg",
     "events": "Evenemang",
+    "members": "Medlemmar",
+    "wishlist": "Min Önskelista",
     "profile": "Profil",
     "admin": "Admin",
     "login": "Logga in",
@@ -48,6 +50,7 @@
     "welcome_message": "Välkommen {{name}}!",
     "welcome_back_message": "Välkommen tillbaka, {{name}}!",
     "logged_out": "Utloggad",
+    "registration_disabled": "Registrering är för närvarande inaktiverad",
     "logged_out_inactive": "Du har loggats ut på grund av inaktivitet"
   },
   "whisky": {
@@ -155,7 +158,13 @@
   "language": {
     "select": "Språk",
     "english": "English",
-    "swedish": "Svenska"
+    "swedish": "Svenska",
+    "available": "Tillgängliga språk",
+    "comingSoon": "Kommer snart",
+    "autoDetect": "Auto-upptäck",
+    "detectDescription": "Upptäck från webbläsarinställningar",
+    "notYetAvailable": "Inte tillgängligt än",
+    "soon": "Snart"
   },
   "home": {
     "welcome": "Välkommen till Åby Whisky Club",

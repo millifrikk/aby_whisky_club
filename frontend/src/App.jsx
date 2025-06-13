@@ -2,8 +2,12 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
+import { SettingsProvider } from './contexts/SettingsContext';
+import { ComparisonProvider } from './contexts/ComparisonContext';
 import Navigation from './components/common/Navigation';
+import useAppearance from './hooks/useAppearance';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import GuestBrowsingGuard from './components/common/GuestBrowsingGuard';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -14,6 +18,9 @@ import WhiskyDetailPage from './pages/WhiskyDetailPage';
 import RatingsPage from './pages/RatingsPage';
 import ProfilePage from './pages/ProfilePage';
 import ProfileSettingsPage from './pages/ProfileSettingsPage';
+import MembersPage from './pages/MembersPage';
+import WishlistPage from './pages/WishlistPage';
+import ComparisonPage from './pages/ComparisonPage';
 import EventsPage from './pages/EventsPage';
 import EventDetailPage from './pages/EventDetailPage';
 
@@ -25,20 +32,44 @@ import UserManagementPage from './pages/admin/UserManagementPage';
 import ContentModerationPage from './pages/admin/ContentModerationPage';
 import SystemSettingsPage from './pages/admin/SystemSettingsPage';
 import DataExportPage from './pages/admin/DataExportPage';
+import PendingWhiskiesPage from './pages/admin/PendingWhiskiesPage';
+import AnalyticsPage from './pages/admin/AnalyticsPage';
 
 function App() {
   return (
     <Router>
       <AuthProvider>
-        <div className="min-h-screen bg-gray-50">
-          <Navigation />
+        <SettingsProvider>
+          <ComparisonProvider>
+            <AppContent />
+          </ComparisonProvider>
+        </SettingsProvider>
+      </AuthProvider>
+    </Router>
+  );
+}
+
+function AppContent() {
+  const { footerText } = useAppearance();
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navigation />
 
           <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
             <Routes>
               {/* Public routes */}
               <Route path="/" element={<HomePage />} />
-              <Route path="/whiskies" element={<WhiskiesPage />} />
-              <Route path="/whiskies/:id" element={<WhiskyDetailPage />} />
+              <Route path="/whiskies" element={
+                <GuestBrowsingGuard>
+                  <WhiskiesPage />
+                </GuestBrowsingGuard>
+              } />
+              <Route path="/whiskies/:id" element={
+                <GuestBrowsingGuard>
+                  <WhiskyDetailPage />
+                </GuestBrowsingGuard>
+              } />
               
               {/* Auth routes (only for non-authenticated users) */}
               <Route 
@@ -89,6 +120,18 @@ function App() {
                 path="/ratings" 
                 element={<RatingsPage />} 
               />
+              <Route 
+                path="/members" 
+                element={<MembersPage />} 
+              />
+              <Route 
+                path="/wishlist" 
+                element={<WishlistPage />} 
+              />
+              <Route 
+                path="/comparison" 
+                element={<ComparisonPage />} 
+              />
 
               {/* Admin routes */}
               <Route 
@@ -112,6 +155,14 @@ function App() {
                 element={
                   <ProtectedRoute requireRole="admin">
                     <WhiskyForm />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/admin/whiskies/pending" 
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <PendingWhiskiesPage />
                   </ProtectedRoute>
                 } 
               />
@@ -163,6 +214,14 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+              <Route 
+                path="/admin/analytics" 
+                element={
+                  <ProtectedRoute requireRole="admin">
+                    <AnalyticsPage />
+                  </ProtectedRoute>
+                } 
+              />
 
               {/* 404 page */}
               <Route 
@@ -180,7 +239,7 @@ function App() {
           <footer className="bg-gray-800 text-white mt-16">
             <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
               <div className="text-center">
-                <p>&copy; 2024 Åby Whisky Club. All rights reserved.</p>
+                <p>{footerText}</p>
                 <p className="text-sm text-gray-400 mt-2">
                   Built with ❤️ for whisky enthusiasts
                 </p>
@@ -209,9 +268,7 @@ function App() {
               },
             }}
           />
-        </div>
-      </AuthProvider>
-    </Router>
+    </div>
   );
 }
 

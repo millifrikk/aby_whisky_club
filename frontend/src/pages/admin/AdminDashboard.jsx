@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { whiskyAPI, newsEventAPI, ratingAPI, adminAPI } from '../../services/api';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { useDateTime } from '../../utils/dateTime';
 import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
   const { t } = useTranslation();
+  const { formatRelativeTime } = useDateTime();
   const [stats, setStats] = useState({});
   const [recentActivity, setRecentActivity] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,7 +64,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-6">
         <Link
           to="/admin/whiskies/new"
           className="bg-amber-600 text-white p-6 rounded-lg shadow-md hover:bg-amber-700 transition-colors"
@@ -98,6 +100,15 @@ const AdminDashboard = () => {
           <h3 className="text-lg font-semibold">Content Moderation</h3>
           <p className="text-purple-100">Review and moderate content</p>
         </Link>
+
+        <Link
+          to="/admin/whiskies/pending"
+          className="bg-orange-600 text-white p-6 rounded-lg shadow-md hover:bg-orange-700 transition-colors"
+        >
+          <div className="text-3xl mb-4">⏳</div>
+          <h3 className="text-lg font-semibold">Pending Whiskies</h3>
+          <p className="text-orange-100">Review whisky submissions</p>
+        </Link>
       </div>
 
       {/* Additional Admin Tools */}
@@ -120,11 +131,14 @@ const AdminDashboard = () => {
           <p className="text-indigo-100">Export system data</p>
         </Link>
 
-        <div className="bg-orange-600 text-white p-6 rounded-lg shadow-md opacity-75">
+        <Link
+          to="/admin/analytics"
+          className="bg-orange-600 text-white p-6 rounded-lg shadow-md hover:bg-orange-700 transition-colors"
+        >
           <div className="text-3xl mb-4">📊</div>
           <h3 className="text-lg font-semibold">Analytics</h3>
-          <p className="text-orange-100">Coming soon...</p>
-        </div>
+          <p className="text-orange-100">View insights and metrics</p>
+        </Link>
       </div>
 
       {/* Statistics */}
@@ -290,7 +304,7 @@ const AdminDashboard = () => {
                     <span className="text-amber-600">{rating.whisky?.name}</span>
                   </div>
                   <div className="text-sm text-gray-600">
-                    Score: {rating.overall_score}/10 • {new Date(rating.created_at).toLocaleDateString()}
+                    Score: {rating.overall_score}/10 • {formatRelativeTime(rating.created_at)}
                   </div>
                   {rating.review_text && (
                     <div className="text-sm text-gray-700 mt-1">

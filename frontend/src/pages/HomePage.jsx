@@ -5,11 +5,34 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import WhiskyStatsCharts from '../components/charts/WhiskyStatsCharts';
 import WhiskyImage from '../components/common/WhiskyImage';
+import Leaderboard from '../components/common/Leaderboard';
+import useAppearance from '../hooks/useAppearance';
+import useContentSettings from '../hooks/useContentSettings';
+import useRatingDisplay from '../hooks/useRatingDisplay';
+import useUserManagement from '../hooks/useUserManagement';
+import useAnalyticsSettings from '../hooks/useAnalyticsSettings';
 import toast from 'react-hot-toast';
 
 const HomePage = () => {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslation();
+  const { heroBackgroundImage, clubMotto } = useAppearance();
+  const { featuredWhiskiesCount } = useContentSettings();
+  const { formatRatingSimple } = useRatingDisplay();
+  const { allowPublicProfiles } = useUserManagement();
+  const { statsPublic } = useAnalyticsSettings();
+  
+  // Helper function to display username respecting privacy settings
+  const getDisplayName = (ratingUser) => {
+    if (!ratingUser) return 'Anonymous';
+    
+    if (allowPublicProfiles) {
+      return ratingUser.first_name || ratingUser.username || 'Member';
+    }
+    
+    return 'Member'; // Hide username when public profiles disabled
+  };
+  
   const [featuredWhiskies, setFeaturedWhiskies] = useState([]);
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [recentRatings, setRecentRatings] = useState([]);
@@ -24,7 +47,7 @@ const HomePage = () => {
     try {
       // Load data with individual error handling
       const results = await Promise.allSettled([
-        whiskyAPI.getFeatured(),
+        whiskyAPI.getFeatured({ limit: featuredWhiskiesCount }),
         newsEventAPI.getUpcoming({ limit: 3 }),
         ratingAPI.getRecent({ limit: 5 }),
         whiskyAPI.getStats(),
@@ -84,7 +107,7 @@ const HomePage = () => {
       {/* Hero Section */}
       <div className="relative rounded-2xl overflow-hidden mb-12"
            style={{
-             backgroundImage: 'url(/images/aby_whisky_club_header01.png)',
+             backgroundImage: `url(${heroBackgroundImage || '/images/aby_whisky_club_header01.png'})`,
              backgroundSize: 'cover',
              backgroundPosition: 'center top',
              backgroundRepeat: 'no-repeat'
@@ -96,7 +119,7 @@ const HomePage = () => {
             {t('home.welcome')}
           </h1>
           <p className="text-xl text-amber-100 mb-8">
-            {t('home.subtitle')}
+            {clubMotto}
           </p>
           
           {!isAuthenticated && (
@@ -119,7 +142,7 @@ const HomePage = () => {
           {isAuthenticated && (
             <div className="bg-white bg-opacity-20 p-4 rounded-lg border border-white border-opacity-30">
               <p className="text-white">
-                {t('auth.welcome_back_message', { name: user?.first_name || user?.username })}
+                {t('auth.welcome_back_message', { name: getDisplayName(user) })}
               </p>
             </div>
           )}
@@ -129,30 +152,32 @@ const HomePage = () => {
 
       
       {/* Stats Section */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
-          <div className="w-12 h-12 mx-auto mb-2">
-            <img src="/whisky-icon.svg" alt="Whisky" className="w-full h-full filter brightness-0 invert" />
+      {statsPublic && (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="bg-gradient-to-br from-amber-500 to-amber-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
+            <div className="w-12 h-12 mx-auto mb-2">
+              <img src="/whisky-icon.svg" alt="Whisky" className="w-full h-full filter brightness-0 invert" />
+            </div>
+            <div className="text-3xl font-bold">{stats.total_whiskies || 0}</div>
+            <div className="text-amber-100">{t('admin.total_whiskies')}</div>
           </div>
-          <div className="text-3xl font-bold">{stats.total_whiskies || 0}</div>
-          <div className="text-amber-100">{t('admin.total_whiskies')}</div>
+          <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
+            <div className="text-4xl mb-2">🏭</div>
+            <div className="text-3xl font-bold">{stats.total_distilleries || 0}</div>
+            <div className="text-blue-100">{t('whisky.distilleries')}</div>
+          </div>
+          <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
+            <div className="text-4xl mb-2">⏰</div>
+            <div className="text-3xl font-bold">{stats.average_age || 'N/A'}</div>
+            <div className="text-green-100">Avg {t('whisky.age')} ({t('whisky.years_old')})</div>
+          </div>
+          <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
+            <div className="text-4xl mb-2">💪</div>
+            <div className="text-3xl font-bold">{stats.average_abv || 'N/A'}%</div>
+            <div className="text-purple-100">Avg {t('whisky.abv')}</div>
+          </div>
         </div>
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
-          <div className="text-4xl mb-2">🏭</div>
-          <div className="text-3xl font-bold">{stats.total_distilleries || 0}</div>
-          <div className="text-blue-100">{t('whisky.distilleries')}</div>
-        </div>
-        <div className="bg-gradient-to-br from-green-500 to-green-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
-          <div className="text-4xl mb-2">⏰</div>
-          <div className="text-3xl font-bold">{stats.average_age || 'N/A'}</div>
-          <div className="text-green-100">Avg {t('whisky.age')} ({t('whisky.years_old')})</div>
-        </div>
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-6 rounded-lg shadow-lg text-center text-white transform hover:scale-105 transition-transform">
-          <div className="text-4xl mb-2">💪</div>
-          <div className="text-3xl font-bold">{stats.average_abv || 'N/A'}%</div>
-          <div className="text-purple-100">Avg {t('whisky.abv')}</div>
-        </div>
-      </div>
+      )}
 
       {/* Feature Grid */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -206,7 +231,7 @@ const HomePage = () => {
       </div>
 
       {/* Analytics Charts */}
-      <WhiskyStatsCharts />
+      {statsPublic && <WhiskyStatsCharts />}
 
       {/* Featured Whiskies */}
       {featuredWhiskies.length > 0 && (
@@ -218,7 +243,7 @@ const HomePage = () => {
             </Link>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {featuredWhiskies.slice(0, 3).map((whisky) => (
+            {featuredWhiskies.slice(0, Math.min(3, featuredWhiskiesCount)).map((whisky) => (
               <div key={whisky.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
                 <WhiskyImage 
                   src={whisky.image_url}
@@ -235,7 +260,7 @@ const HomePage = () => {
                   {whisky.rating_average > 0 && (
                     <div className="flex items-center mb-4">
                       <span className="text-amber-500">★</span>
-                      <span className="ml-1 text-sm">{whisky.rating_average}/10</span>
+                      <span className="ml-1 text-sm">{formatRatingSimple(whisky.rating_average)}</span>
                       <span className="ml-2 text-xs text-gray-500">
                         ({whisky.rating_count} rating{whisky.rating_count !== 1 ? 's' : ''})
                       </span>
@@ -253,6 +278,9 @@ const HomePage = () => {
           </div>
         </section>
       )}
+
+      {/* Leaderboard Section */}
+      <Leaderboard limit={3} />
 
       {/* Upcoming Events */}
       {upcomingEvents.length > 0 && (
@@ -305,7 +333,7 @@ const HomePage = () => {
                   <div>
                     <h4 className="font-medium">{rating.whisky?.name}</h4>
                     <p className="text-sm text-gray-600">
-                      by {rating.user?.first_name || rating.user?.username}
+                      by {getDisplayName(rating.user)}
                     </p>
                     {rating.review_text && (
                       <p className="text-sm text-gray-700 mt-2">
@@ -315,7 +343,7 @@ const HomePage = () => {
                   </div>
                   <div className="text-right">
                     <div className="text-lg font-semibold text-amber-600">
-                      {rating.overall_score}/10
+                      {formatRatingSimple(rating.overall_score)}
                     </div>
                     <div className="text-xs text-gray-500">
                       {new Date(rating.created_at).toLocaleDateString()}

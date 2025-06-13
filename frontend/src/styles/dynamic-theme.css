@@ -1,0 +1,57 @@
+/* Dynamic Theme Styles */
+:root {
+  --color-primary: #d97706; /* Default amber-600 */
+  --color-primary-dark: #f59e0b; /* Default amber-700 */
+  --color-secondary: #f59e0b; /* Default amber-500 */
+}
+
+/* Dynamic theme utility classes */
+.bg-primary {
+  background-color: var(--color-primary) !important;
+}
+
+.bg-primary-dark {
+  background-color: var(--color-primary-dark) !important;
+}
+
+.text-primary {
+  color: var(--color-primary) !important;
+}
+
+.text-primary-dark {
+  color: var(--color-primary-dark) !important;
+}
+
+.border-primary {
+  border-color: var(--color-primary) !important;
+}
+
+.ring-primary {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+/* Hover states */
+.hover\:bg-primary:hover {
+  background-color: var(--color-primary) !important;
+}
+
+.hover\:bg-primary-dark:hover {
+  background-color: var(--color-primary-dark) !important;
+}
+
+.hover\:text-primary:hover {
+  color: var(--color-primary) !important;
+}
+
+.hover\:text-primary-dark:hover {
+  color: var(--color-primary-dark) !important;
+}
+
+/* Focus states */
+.focus\:ring-primary:focus {
+  --tw-ring-color: var(--color-primary) !important;
+}
+
+.focus\:border-primary:focus {
+  border-color: var(--color-primary) !important;
+}

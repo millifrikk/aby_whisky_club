@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 import { newsEventAPI } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
+import { useCurrency } from '../utils/currency';
+import { useDateTime } from '../utils/dateTime';
 import toast from 'react-hot-toast';
 
 const EventsPage = () => {
   const { user, isAuthenticated } = useAuth();
   const { t } = useTranslation();
+  const { formatPrice } = useCurrency();
+  const { formatEventDate, formatDateTime } = useDateTime();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({
@@ -85,18 +89,12 @@ const EventsPage = () => {
     return labels[type] || 'Event';
   };
 
-  const formatEventDate = (dateString) => {
+  // Enhanced date formatting using localized utilities
+  const formatEventDateDisplay = (dateString) => {
     const date = new Date(dateString);
     return {
-      date: date.toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: 'numeric',
-        year: 'numeric'
-      }),
-      time: date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit'
-      })
+      date: formatEventDate(dateString), // Uses localized formatting from useDateTime
+      time: formatDateTime(dateString, 'short', 'short').split(' ')[1] // Extract time portion
     };
   };
 
@@ -251,8 +249,8 @@ const EventsPage = () => {
                   <div className="flex items-center text-sm text-gray-600 mb-3">
                     <span className="mr-2">📅</span>
                     <div>
-                      <div>{formatEventDate(item.event_date).date}</div>
-                      <div className="text-xs">{formatEventDate(item.event_date).time}</div>
+                      <div>{formatEventDateDisplay(item.event_date).date}</div>
+                      <div className="text-xs">{formatEventDateDisplay(item.event_date).time}</div>
                     </div>
                   </div>
                 )}
@@ -278,7 +276,7 @@ const EventsPage = () => {
                   <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
                     {item.price && (
                       <span className="bg-gray-100 px-2 py-1 rounded">
-                        ${item.price}
+                        {formatPrice(item.price)}
                       </span>
                     )}
                     {item.capacity && (

@@ -1,11 +1,19 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
+import useUserManagement from '../hooks/useUserManagement';
 
 const RegisterPage = () => {
   const navigate = useNavigate();
   const { register: registerUser, loading } = useAuth();
+  const { 
+    allowRegistration, 
+    minPasswordLength, 
+    passwordComplexityRequired,
+    requireRealNames,
+    loading: settingsLoading 
+  } = useUserManagement();
   const [showPassword, setShowPassword] = useState(false);
 
   const {
@@ -17,6 +25,33 @@ const RegisterPage = () => {
   } = useForm();
 
   const password = watch('password');
+
+  // Redirect if registration is disabled (but wait for settings to load)
+  useEffect(() => {
+    if (!settingsLoading && !allowRegistration) {
+      navigate('/login');
+    }
+  }, [allowRegistration, settingsLoading, navigate]);
+
+  // Build dynamic password validation rules
+  const getPasswordValidation = () => {
+    const rules = {
+      required: 'Password is required',
+      minLength: {
+        value: minPasswordLength,
+        message: `Password must be at least ${minPasswordLength} characters`,
+      }
+    };
+
+    if (passwordComplexityRequired) {
+      rules.pattern = {
+        value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+        message: 'Password must contain uppercase, lowercase, number, and special character',
+      };
+    }
+
+    return rules;
+  };
 
   const onSubmit = async (data) => {
     if (data.password !== data.confirmPassword) {
@@ -31,7 +66,22 @@ const RegisterPage = () => {
     const result = await registerUser(userData);
     
     if (result.success) {
-      navigate('/');
+      if (result.requiresApproval) {
+        // Show approval pending message instead of redirecting
+        setError('root', {
+          type: 'success',
+          message: result.approvalMessage || 'Registration submitted successfully. Your account is pending approval.',
+        });
+      } else if (result.requiresEmailVerification) {
+        // Show email verification message instead of redirecting
+        setError('root', {
+          type: 'success',
+          message: result.verificationMessage || 'Registration successful. Please check your email for verification.',
+        });
+      } else {
+        // Normal registration - redirect to home
+        navigate('/');
+      }
     } else {
       setError('root', {
         type: 'manual',
@@ -39,6 +89,29 @@ const RegisterPage = () => {
       });
     }
   };
+
+  // Show loading or redirect message if registration is disabled
+  if (!allowRegistration) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full text-center">
+          <h1 className="text-4xl font-bold text-amber-800">🥃</h1>
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            Registration Disabled
+          </h2>
+          <p className="mt-2 text-sm text-gray-600">
+            New registrations are currently not allowed.
+          </p>
+          <Link
+            to="/login"
+            className="mt-4 inline-block font-medium text-amber-600 hover:text-amber-500"
+          >
+            Back to Sign In
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -66,28 +139,34 @@ const RegisterPage = () => {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="first_name" className="block text-sm font-medium text-gray-700">
-                  First Name
+                  First Name{requireRealNames && ' *'}
                 </label>
                 <input
-                  {...register('first_name')}
+                  {...register('first_name', requireRealNames ? { required: 'First name is required' } : {})}
                   type="text"
                   autoComplete="given-name"
                   className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
                   placeholder="First name"
                 />
+                {errors.first_name && (
+                  <p className="mt-1 text-sm text-red-600">{errors.first_name.message}</p>
+                )}
               </div>
 
               <div>
                 <label htmlFor="last_name" className="block text-sm font-medium text-gray-700">
-                  Last Name
+                  Last Name{requireRealNames && ' *'}
                 </label>
                 <input
-                  {...register('last_name')}
+                  {...register('last_name', requireRealNames ? { required: 'Last name is required' } : {})}
                   type="text"
                   autoComplete="family-name"
                   className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
                   placeholder="Last name"
                 />
+                {errors.last_name && (
+                  <p className="mt-1 text-sm text-red-600">{errors.last_name.message}</p>
+                )}
               </div>
             </div>
 
@@ -145,17 +224,7 @@ const RegisterPage = () => {
               </label>
               <div className="mt-1 relative">
                 <input
-                  {...register('password', {
-                    required: 'Password is required',
-                    minLength: {
-                      value: 8,
-                      message: 'Password must be at least 8 characters',
-                    },
-                    pattern: {
-                      value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
-                      message: 'Password must contain uppercase, lowercase, number, and special character',
-                    },
-                  })}
+                  {...register('password', getPasswordValidation())}
                   type={showPassword ? 'text' : 'password'}
                   autoComplete="new-password"
                   className="appearance-none rounded-md relative block w-full px-3 py-2 pr-10 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-amber-500 focus:border-amber-500 focus:z-10 sm:text-sm"
@@ -181,6 +250,20 @@ const RegisterPage = () => {
               {errors.password && (
                 <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
               )}
+              <div className="mt-2 text-xs text-gray-500">
+                <p>Password requirements:</p>
+                <ul className="ml-2 list-disc">
+                  <li>At least {minPasswordLength} characters</li>
+                  {passwordComplexityRequired && (
+                    <>
+                      <li>One uppercase letter</li>
+                      <li>One lowercase letter</li>
+                      <li>One number</li>
+                      <li>One special character (@$!%*?&)</li>
+                    </>
+                  )}
+                </ul>
+              </div>
             </div>
 
             <div>
@@ -203,8 +286,18 @@ const RegisterPage = () => {
           </div>
 
           {errors.root && (
-            <div className="rounded-md bg-red-50 p-4">
-              <p className="text-sm text-red-800">{errors.root.message}</p>
+            <div className={`rounded-md p-4 ${
+              errors.root.type === 'success' 
+                ? 'bg-green-50 border border-green-200' 
+                : 'bg-red-50'
+            }`}>
+              <p className={`text-sm ${
+                errors.root.type === 'success' 
+                  ? 'text-green-800' 
+                  : 'text-red-800'
+              }`}>
+                {errors.root.message}
+              </p>
             </div>
           )}
 

@@ -38,5 +38,21 @@ export const adminAPI = {
   createDistillery: async (distilleryData) => {
     const response = await api.post('/distilleries', distilleryData);
     return response.data;
+  },
+
+  // Whisky approval management
+  getPendingWhiskies: async (params = {}) => {
+    const response = await api.get('/admin/whiskies/pending', { params });
+    return response.data;
+  },
+
+  approveWhisky: async (whiskyId, data = {}) => {
+    const response = await api.post(`/admin/whiskies/${whiskyId}/approve`, data);
+    return response.data;
+  },
+
+  rejectWhisky: async (whiskyId, data = {}) => {
+    const response = await api.post(`/admin/whiskies/${whiskyId}/reject`, data);
+    return response.data;
   }
 };

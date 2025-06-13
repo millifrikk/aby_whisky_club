@@ -63,7 +63,15 @@
       "mcp__puppeteer__puppeteer_evaluate",
       "mcp__puppeteer__puppeteer_fill",
       "Bash(grep:*)",
-      "mcp__puppeteer__puppeteer_select"
+      "mcp__puppeteer__puppeteer_select",
+      "mcp__postgres__query",
+      "mcp__github__search_repositories",
+      "mcp__github__get_file_contents",
+      "mcp__github__list_commits",
+      "Bash(git push:*)",
+      "Bash(rg:*)",
+      "Bash(docker-compose stop:*)",
+      "Bash(docker:*)"
     ],
     "deny": []
   }
