@@ -88,6 +88,11 @@ router.post('/whiskies/:id/reject', AdminController.rejectWhisky);
 // @access  Private (Admin only)
 router.get('/settings', AdminController.getSystemSettings);
 
+// @route   GET /api/admin/settings/enhanced
+// @desc    Get all system settings with search metadata
+// @access  Private (Admin only)
+router.get('/settings/enhanced', AdminController.getEnhancedSystemSettings);
+
 // @route   PUT /api/admin/settings/:key
 // @desc    Update system setting
 // @access  Private (Admin only)

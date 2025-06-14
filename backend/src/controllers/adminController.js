@@ -622,6 +622,298 @@ class AdminController {
     }
   }
 
+  // Get enhanced system settings with search metadata
+  static async getEnhancedSystemSettings(req, res) {
+    try {
+      const { category } = req.query;
+
+      let where = {};
+      if (category && category !== 'all') {
+        where.category = category;
+      }
+
+      const settings = await SystemSetting.findAll({
+        where,
+        order: [['category', 'ASC'], ['key', 'ASC']]
+      });
+
+      // Add search metadata to each setting
+      const enhancedSettings = settings.map(setting => {
+        const searchMetadata = AdminController.getSearchMetadata(setting.key);
+        return {
+          id: setting.id,
+          key: setting.key,
+          value: setting.getParsedValue(),
+          data_type: setting.data_type,
+          category: setting.category,
+          description: setting.description,
+          is_readonly: setting.is_readonly,
+          validation_rules: setting.validation_rules,
+          search: searchMetadata
+        };
+      });
+
+      // Group by category for easier frontend handling
+      const settingsByCategory = enhancedSettings.reduce((acc, setting) => {
+        if (!acc[setting.category]) {
+          acc[setting.category] = [];
+        }
+        acc[setting.category].push(setting);
+        return acc;
+      }, {});
+
+      res.json({
+        settings: enhancedSettings,
+        settings_by_category: settingsByCategory,
+        categories: Object.keys(settingsByCategory).sort(),
+        total_count: enhancedSettings.length
+      });
+
+    } catch (error) {
+      console.error('Get enhanced system settings error:', error);
+      res.status(500).json({
+        error: 'Failed to fetch enhanced system settings',
+        message: 'An error occurred while fetching enhanced system settings'
+      });
+    }
+  }
+
+  // Get search metadata for a setting
+  static getSearchMetadata(settingKey) {
+    const searchData = {
+      // General Settings
+      'site_name': {
+        title: 'Site Name',
+        keywords: ['name', 'title', 'club', 'brand', 'site'],
+        synonyms: ['website name', 'club name', 'title', 'brand name'],
+        weight: 'high',
+        related: ['site_description', 'club_motto']
+      },
+      'site_description': {
+        title: 'Site Description',
+        keywords: ['description', 'about', 'tagline', 'summary'],
+        synonyms: ['about us', 'site summary', 'club description'],
+        weight: 'high',
+        related: ['site_name', 'club_motto']
+      },
+      'allow_registration': {
+        title: 'Allow Registration',
+        keywords: ['registration', 'signup', 'join', 'new users', 'members'],
+        synonyms: ['sign up', 'new members', 'user registration', 'join club'],
+        weight: 'high',
+        related: ['require_email_verification', 'registration_approval_required']
+      },
+      'require_email_verification': {
+        title: 'Email Verification Required',
+        keywords: ['email', 'verification', 'confirm', 'validate', 'activate'],
+        synonyms: ['email confirmation', 'account activation', 'verify email'],
+        weight: 'high',
+        related: ['allow_registration', 'admin_email']
+      },
+
+      // Email Settings
+      'email_notifications_enabled': {
+        title: 'Email Notifications',
+        keywords: ['email', 'notifications', 'alerts', 'messages'],
+        synonyms: ['email alerts', 'notification emails', 'email messages'],
+        weight: 'high',
+        related: ['admin_email', 'smtp_enabled']
+      },
+      'admin_email': {
+        title: 'Admin Email',
+        keywords: ['admin', 'email', 'administrator', 'contact'],
+        synonyms: ['administrator email', 'admin contact', 'system email'],
+        weight: 'medium',
+        related: ['email_notifications_enabled']
+      },
+      'smtp_enabled': {
+        title: 'SMTP Email System',
+        keywords: ['smtp', 'email', 'mail', 'sending', 'server'],
+        synonyms: ['email server', 'mail server', 'email sending'],
+        weight: 'medium',
+        related: ['smtp_host', 'smtp_port', 'smtp_username']
+      },
+      'smtp_host': {
+        title: 'SMTP Server Host',
+        keywords: ['smtp', 'host', 'server', 'mail server', 'email'],
+        synonyms: ['mail server', 'email host', 'smtp server'],
+        weight: 'low',
+        related: ['smtp_enabled', 'smtp_port']
+      },
+      'smtp_port': {
+        title: 'SMTP Port',
+        keywords: ['smtp', 'port', 'email', 'mail', 'connection'],
+        synonyms: ['mail port', 'email port', 'smtp connection'],
+        weight: 'low',
+        related: ['smtp_host', 'smtp_enabled']
+      },
+
+      // Security Settings
+      'enable_two_factor_auth': {
+        title: 'Two-Factor Authentication',
+        keywords: ['2FA', 'two factor', 'authentication', 'security', 'TOTP', 'MFA'],
+        synonyms: ['2FA', 'dual authentication', 'multi-factor auth', 'security code'],
+        weight: 'high',
+        related: ['login_attempt_limit', 'account_lockout_duration']
+      },
+      'password_complexity_rules': {
+        title: 'Password Complexity Rules',
+        keywords: ['password', 'complexity', 'rules', 'requirements', 'security', 'strength'],
+        synonyms: ['password rules', 'password requirements', 'password strength'],
+        weight: 'high',
+        related: ['enable_two_factor_auth', 'login_attempt_limit']
+      },
+      'login_attempt_limit': {
+        title: 'Login Attempt Limit',
+        keywords: ['login', 'attempts', 'limit', 'security', 'lockout', 'brute force'],
+        synonyms: ['failed logins', 'login limit', 'attempt limit', 'security limit'],
+        weight: 'medium',
+        related: ['account_lockout_duration', 'enable_two_factor_auth']
+      },
+      'account_lockout_duration': {
+        title: 'Account Lockout Duration',
+        keywords: ['lockout', 'duration', 'timeout', 'lock', 'security', 'minutes'],
+        synonyms: ['lock duration', 'lockout time', 'account lock'],
+        weight: 'medium',
+        related: ['login_attempt_limit']
+      },
+      'session_timeout_hours': {
+        title: 'Session Timeout',
+        keywords: ['session', 'timeout', 'hours', 'logout', 'auto logout'],
+        synonyms: ['session duration', 'auto logout', 'session expiry'],
+        weight: 'medium',
+        related: ['idle_timeout_minutes']
+      },
+      'idle_timeout_minutes': {
+        title: 'Idle Timeout',
+        keywords: ['idle', 'timeout', 'minutes', 'inactivity', 'auto logout'],
+        synonyms: ['inactivity timeout', 'idle time', 'inactive logout'],
+        weight: 'medium',
+        related: ['session_timeout_hours']
+      },
+
+      // Appearance Settings
+      'site_logo_url': {
+        title: 'Site Logo',
+        keywords: ['logo', 'image', 'brand', 'header', 'navigation'],
+        synonyms: ['club logo', 'brand image', 'header logo'],
+        weight: 'high',
+        related: ['site_favicon_url', 'primary_color']
+      },
+      'site_favicon_url': {
+        title: 'Site Favicon',
+        keywords: ['favicon', 'icon', 'browser', 'tab', 'bookmark'],
+        synonyms: ['browser icon', 'tab icon', 'site icon'],
+        weight: 'low',
+        related: ['site_logo_url']
+      },
+      'primary_color': {
+        title: 'Primary Brand Color',
+        keywords: ['color', 'primary', 'brand', 'theme', 'design'],
+        synonyms: ['main color', 'brand color', 'theme color'],
+        weight: 'medium',
+        related: ['secondary_color', 'site_logo_url']
+      },
+      'secondary_color': {
+        title: 'Secondary Brand Color',
+        keywords: ['color', 'secondary', 'accent', 'theme', 'design'],
+        synonyms: ['accent color', 'secondary theme', 'second color'],
+        weight: 'medium',
+        related: ['primary_color']
+      },
+      'enable_dark_mode': {
+        title: 'Dark Mode',
+        keywords: ['dark', 'mode', 'theme', 'night', 'appearance'],
+        synonyms: ['dark theme', 'night mode', 'dark appearance'],
+        weight: 'high',
+        related: ['primary_color', 'secondary_color']
+      },
+      'club_motto': {
+        title: 'Club Motto',
+        keywords: ['motto', 'tagline', 'slogan', 'message'],
+        synonyms: ['club slogan', 'tagline', 'club message'],
+        weight: 'low',
+        related: ['site_name', 'site_description']
+      },
+
+      // Social Features
+      'enable_user_messaging': {
+        title: 'User Messaging',
+        keywords: ['messaging', 'chat', 'direct message', 'DM', 'communication'],
+        synonyms: ['direct messages', 'user chat', 'private messages'],
+        weight: 'medium',
+        related: ['enable_user_follows', 'enable_social_sharing']
+      },
+      'enable_social_sharing': {
+        title: 'Social Sharing',
+        keywords: ['social', 'sharing', 'share', 'facebook', 'twitter', 'media'],
+        synonyms: ['social media', 'share buttons', 'social networks'],
+        weight: 'medium',
+        related: ['enable_user_messaging', 'enable_user_follows']
+      },
+      'enable_user_follows': {
+        title: 'User Following',
+        keywords: ['follow', 'friends', 'connections', 'social', 'network'],
+        synonyms: ['user friends', 'follow users', 'social connections'],
+        weight: 'medium',
+        related: ['enable_user_messaging', 'enable_social_sharing']
+      },
+      'enable_whisky_tags': {
+        title: 'Whisky Tags',
+        keywords: ['tags', 'tagging', 'labels', 'categories', 'classification'],
+        synonyms: ['whisky labels', 'whisky categories', 'tagging system'],
+        weight: 'medium',
+        related: ['auto_approve_whiskies']
+      },
+      'auto_approve_whiskies': {
+        title: 'Auto-Approve Whiskies',
+        keywords: ['auto', 'approve', 'approval', 'automatic', 'whiskies', 'moderation'],
+        synonyms: ['automatic approval', 'auto moderation', 'whisky approval'],
+        weight: 'medium',
+        related: ['enable_whisky_tags', 'whisky_submission_guidelines']
+      },
+      'whisky_submission_guidelines': {
+        title: 'Whisky Submission Guidelines',
+        keywords: ['guidelines', 'submission', 'rules', 'instructions', 'whiskies'],
+        synonyms: ['submission rules', 'whisky rules', 'posting guidelines'],
+        weight: 'low',
+        related: ['auto_approve_whiskies']
+      },
+
+      // Content Settings
+      'max_whiskies_per_page': {
+        title: 'Whiskies Per Page',
+        keywords: ['pagination', 'page', 'limit', 'whiskies', 'display'],
+        synonyms: ['page size', 'display limit', 'pagination limit'],
+        weight: 'low',
+        related: ['allow_guest_ratings']
+      },
+      'allow_guest_ratings': {
+        title: 'Guest Ratings',
+        keywords: ['guest', 'ratings', 'anonymous', 'public', 'view'],
+        synonyms: ['public ratings', 'anonymous ratings', 'guest access'],
+        weight: 'medium',
+        related: ['max_whiskies_per_page', 'rating_submission_enabled']
+      },
+      'default_whisky_image': {
+        title: 'Default Whisky Image',
+        keywords: ['default', 'image', 'whisky', 'placeholder', 'fallback'],
+        synonyms: ['placeholder image', 'fallback image', 'default picture'],
+        weight: 'low',
+        related: ['site_logo_url']
+      }
+    };
+
+    // Default fallback for any unmapped settings
+    return searchData[settingKey] || {
+      title: settingKey.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+      keywords: settingKey.split('_'),
+      synonyms: [],
+      weight: 'low',
+      related: []
+    };
+  }
+
   // Update system setting
   static async updateSystemSetting(req, res) {
     try {
@@ -1107,6 +1399,109 @@ class AdminController {
           is_public: false
         },
         {
+          key: 'password_complexity_rules',
+          value: JSON.stringify({
+            min_length: 8,
+            require_uppercase: true,
+            require_lowercase: true,
+            require_numbers: true,
+            require_special_chars: true,
+            allowed_special_chars: '@$!%*?&#+\\-_.,~',
+            prevent_common_passwords: true,
+            prevent_username_in_password: true,
+            max_length: 128
+          }),
+          data_type: 'json',
+          category: 'security',
+          description: 'Detailed password complexity requirements',
+          is_public: false,
+          validation_rules: {
+            required: ['min_length', 'max_length'],
+            minMessage: 'Password complexity rules are required'
+          }
+        },
+        {
+          key: 'login_attempt_limit',
+          value: 5,
+          data_type: 'number',
+          category: 'security',
+          description: 'Maximum failed login attempts before lockout',
+          is_public: false,
+          validation_rules: {
+            min: 3,
+            max: 20,
+            minMessage: 'Login attempt limit must be between 3 and 20'
+          }
+        },
+        {
+          key: 'account_lockout_duration',
+          value: 30,
+          data_type: 'number',
+          category: 'security',
+          description: 'Account lockout duration in minutes',
+          is_public: false,
+          validation_rules: {
+            min: 5,
+            max: 1440,
+            minMessage: 'Lockout duration must be between 5 and 1440 minutes (24 hours)'
+          }
+        },
+        {
+          key: 'session_timeout_hours',
+          value: 24,
+          data_type: 'number',
+          category: 'security',
+          description: 'Maximum session duration in hours',
+          is_public: false,
+          validation_rules: {
+            min: 1,
+            max: 168,
+            minMessage: 'Session timeout must be between 1 and 168 hours (1 week)'
+          }
+        },
+        {
+          key: 'idle_timeout_minutes',
+          value: 120,
+          data_type: 'number',
+          category: 'security',
+          description: 'Session idle timeout in minutes',
+          is_public: false,
+          validation_rules: {
+            min: 15,
+            max: 480,
+            minMessage: 'Idle timeout must be between 15 and 480 minutes (8 hours)'
+          }
+        },
+        {
+          key: 'require_email_verification',
+          value: false,
+          data_type: 'boolean',
+          category: 'security',
+          description: 'Require email verification for new accounts',
+          is_public: false
+        },
+        {
+          key: 'enable_two_factor_auth',
+          value: false,
+          data_type: 'boolean',
+          category: 'security',
+          description: 'Enable two-factor authentication site-wide',
+          is_public: false
+        },
+        {
+          key: 'max_login_attempts',
+          value: 5,
+          data_type: 'number',
+          category: 'security',
+          description: 'Maximum login attempts (deprecated - use login_attempt_limit)',
+          is_public: false,
+          validation_rules: {
+            min: 3,
+            max: 20,
+            minMessage: 'Max login attempts must be between 3 and 20'
+          }
+        },
+        {
           key: 'enable_user_avatars',
           value: true,
           data_type: 'boolean',
@@ -1550,6 +1945,207 @@ class AdminController {
           category: 'localization',
           description: 'Auto-detect user language preference',
           is_public: false
+        },
+        // Additional localization settings
+        {
+          key: 'number_format',
+          value: 'US',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Regional number formatting preference',
+          is_public: true,
+          validation_rules: {
+            enum: ['US', 'EU', 'IN'],
+            enumMessage: 'Must be one of: US (1,234.56), EU (1.234,56), IN (1,23,456.78)'
+          }
+        },
+        {
+          key: 'decimal_separator',
+          value: '.',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Character used for decimal point',
+          is_public: true,
+          validation_rules: {
+            enum: ['.', ','],
+            enumMessage: 'Must be one of: . (dot), , (comma)'
+          }
+        },
+        {
+          key: 'thousands_separator',
+          value: ',',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Character used for thousands grouping',
+          is_public: true,
+          validation_rules: {
+            enum: [',', '.', ' ', ''],
+            enumMessage: 'Must be one of: , (comma), . (dot), (space), (none)'
+          }
+        },
+        {
+          key: 'time_format',
+          value: '12h',
+          data_type: 'string',
+          category: 'localization',
+          description: '12-hour vs 24-hour time display format',
+          is_public: true,
+          validation_rules: {
+            enum: ['12h', '24h'],
+            enumMessage: 'Must be one of: 12h (12-hour), 24h (24-hour)'
+          }
+        },
+        {
+          key: 'first_day_of_week',
+          value: 0,
+          data_type: 'number',
+          category: 'localization',
+          description: 'First day of week for calendar display',
+          is_public: true,
+          validation_rules: {
+            min: 0,
+            max: 6,
+            enum: [0, 1],
+            enumMessage: 'Must be: 0 (Sunday) or 1 (Monday)'
+          }
+        },
+        {
+          key: 'week_numbering',
+          value: 'iso',
+          data_type: 'string',
+          category: 'localization',
+          description: 'Week numbering system for calendar',
+          is_public: true,
+          validation_rules: {
+            enum: ['iso', 'us'],
+            enumMessage: 'Must be one of: iso (ISO 8601), us (US system)'
+          }
+        },
+        // API & Integration settings
+        {
+          key: 'api_rate_limit',
+          value: 100,
+          data_type: 'number',
+          category: 'api_integration',
+          description: 'API requests per minute per user/IP',
+          is_public: false,
+          validation_rules: {
+            min: 10,
+            max: 10000,
+            minMessage: 'Rate limit must be at least 10 requests per minute',
+            maxMessage: 'Rate limit cannot exceed 10,000 requests per minute'
+          }
+        },
+        {
+          key: 'enable_webhook_notifications',
+          value: false,
+          data_type: 'boolean',
+          category: 'api_integration',
+          description: 'Enable webhook notifications for external integrations',
+          is_public: false
+        },
+        {
+          key: 'third_party_integrations',
+          value: '',
+          data_type: 'string',
+          category: 'api_integration',
+          description: 'Comma-separated list of enabled third-party integrations',
+          is_public: false,
+          validation_rules: {
+            pattern: '^[a-zA-Z0-9,_-]*$',
+            patternMessage: 'Integration names can only contain letters, numbers, commas, underscores, and hyphens'
+          }
+        },
+        {
+          key: 'enable_advanced_analytics',
+          value: false,
+          data_type: 'boolean',
+          category: 'api_integration',
+          description: 'Enable advanced analytics dashboard and tracking',
+          is_public: false
+        },
+        {
+          key: 'data_retention_days',
+          value: 365,
+          data_type: 'number',
+          category: 'api_integration',
+          description: 'Days to retain user activity and analytics data',
+          is_public: false,
+          validation_rules: {
+            min: 30,
+            max: 2555,
+            minMessage: 'Data retention must be at least 30 days',
+            maxMessage: 'Data retention cannot exceed 7 years (2555 days)'
+          }
+        },
+        {
+          key: 'export_user_data_enabled',
+          value: true,
+          data_type: 'boolean',
+          category: 'api_integration',
+          description: 'Enable GDPR compliance user data export functionality',
+          is_public: false
+        },
+        // Social Features settings
+        {
+          key: 'enable_user_messaging',
+          value: false,
+          data_type: 'boolean',
+          category: 'social_features',
+          description: 'Enable direct messaging system between users',
+          is_public: true
+        },
+        {
+          key: 'enable_social_sharing',
+          value: true,
+          data_type: 'boolean',
+          category: 'social_features',
+          description: 'Enable enhanced social media sharing capabilities',
+          is_public: true
+        },
+        {
+          key: 'enable_user_follows',
+          value: false,
+          data_type: 'boolean',
+          category: 'social_features',
+          description: 'Enable user following/friend relationship system',
+          is_public: true
+        },
+        {
+          key: 'enable_dark_mode',
+          value: true,
+          data_type: 'boolean',
+          category: 'social_features',
+          description: 'Enable dark theme support and switching',
+          is_public: true
+        },
+        {
+          key: 'enable_whisky_tags',
+          value: true,
+          data_type: 'boolean',
+          category: 'social_features',
+          description: 'Enable user-generated tagging system for whiskies',
+          is_public: true
+        },
+        {
+          key: 'auto_approve_whiskies',
+          value: false,
+          data_type: 'boolean',
+          category: 'social_features',
+          description: 'Automatically approve whisky submissions without admin review',
+          is_public: false
+        },
+        {
+          key: 'whisky_submission_guidelines',
+          value: 'Please ensure all whisky information is accurate and complete. Include detailed tasting notes and proper distillery information.',
+          data_type: 'string',
+          category: 'social_features',
+          description: 'Guidelines text displayed to users when submitting whiskies',
+          is_public: true,
+          validation_rules: {
+            maxLength: 1000,
+            maxLengthMessage: 'Guidelines text cannot exceed 1000 characters'
+          }
         }
       ];
 

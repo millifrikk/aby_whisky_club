@@ -98,6 +98,7 @@ export const adminAPI = {
   
   // System Settings
   getSystemSettings: (params) => api.get('/admin/settings', { params }),
+  getEnhancedSystemSettings: (params) => api.get('/admin/settings/enhanced', { params }),
   updateSystemSetting: (key, data) => api.put(`/admin/settings/${key}`, data),
   createSystemSetting: (data) => api.post('/admin/settings', data),
   deleteSystemSetting: (key) => api.delete(`/admin/settings/${key}`),

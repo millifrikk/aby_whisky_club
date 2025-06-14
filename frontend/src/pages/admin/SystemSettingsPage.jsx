@@ -5,32 +5,86 @@ import { adminAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import CurrencyManagementPanel from '../../components/admin/CurrencyManagementPanel';
 import LocalizationTestPanel from '../../components/admin/LocalizationTestPanel';
+import SettingsSearch from '../../components/admin/SettingsSearch';
+import SettingsSearchResults from '../../components/admin/SettingsSearchResults';
+import ErrorBoundary from '../../components/common/ErrorBoundary';
 
 const SystemSettingsPage = () => {
   const { isAdmin } = useAuth();
   const { refreshSettings } = useSettings();
   const [settingsByCategory, setSettingsByCategory] = useState({});
+  const [allSettings, setAllSettings] = useState([]);
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearchMode, setIsSearchMode] = useState(false);
+  const [currentSearchTerm, setCurrentSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [editedValues, setEditedValues] = useState({});
+  const [isLoadingSettings, setIsLoadingSettings] = useState(false);
 
   useEffect(() => {
     if (!isAdmin()) return;
-    loadSettings();
+    // Debounce the loadSettings call to prevent multiple rapid calls
+    const timer = setTimeout(() => {
+      loadSettings();
+    }, 100);
+
+    return () => clearTimeout(timer);
   }, [isAdmin, selectedCategory]);
 
+  // Initialize search results when allSettings is loaded (only if no active search)
+  useEffect(() => {
+    if (allSettings.length > 0 && !isSearchMode && !currentSearchTerm.trim()) {
+      setSearchResults(allSettings);
+    }
+  }, [allSettings, isSearchMode, currentSearchTerm]);
+
   const loadSettings = async () => {
+    if (isLoadingSettings) return; // Prevent multiple simultaneous requests
+    
     try {
+      setIsLoadingSettings(true);
       setLoading(true);
       const params = selectedCategory !== 'all' ? { category: selectedCategory } : {};
-      const response = await adminAPI.getSystemSettings(params);
-      setSettingsByCategory(response.data.settings_by_category);
+      
+      // Try to load enhanced settings with search metadata
+      try {
+        const enhancedResponse = await adminAPI.getEnhancedSystemSettings(params);
+        const responseData = enhancedResponse.data || enhancedResponse;
+        setAllSettings(responseData.settings || []);
+        setSettingsByCategory(responseData.settings_by_category || {});
+      } catch (enhancedError) {
+        console.warn('Enhanced settings not available, falling back to regular settings:', enhancedError);
+        
+        // Fallback to regular settings endpoint
+        const response = await adminAPI.getSystemSettings(params);
+        setSettingsByCategory(response.data.settings_by_category || {});
+        
+        // Convert to flat array for search and add basic search metadata
+        const flatSettings = Object.values(response.data.settings_by_category || {}).flat().map(setting => ({
+          ...setting,
+          search: {
+            title: setting.key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+            keywords: setting.key.split('_'),
+            synonyms: [],
+            weight: 'medium',
+            related: []
+          }
+        }));
+        setAllSettings(flatSettings);
+      }
     } catch (error) {
       console.error('Error loading settings:', error);
-      toast.error('Failed to load system settings');
+      // Only show toast error if we haven't shown one recently
+      if (!localStorage.getItem('last_settings_error') || 
+          Date.now() - parseInt(localStorage.getItem('last_settings_error')) > 5000) {
+        toast.error('Failed to load system settings');
+        localStorage.setItem('last_settings_error', Date.now().toString());
+      }
     } finally {
       setLoading(false);
+      setIsLoadingSettings(false);
     }
   };
 
@@ -82,6 +136,30 @@ const SystemSettingsPage = () => {
       delete newValues[key];
       return newValues;
     });
+  };
+
+  // Search handlers
+  const handleSearchResults = (results, hasActiveSearch = false, searchTerm = '') => {
+    setSearchResults(results);
+    setIsSearchMode(hasActiveSearch);
+    setCurrentSearchTerm(searchTerm);
+  };
+
+  const handleSettingClick = (setting) => {
+    // Jump to setting in regular view
+    setIsSearchMode(false);
+    setSelectedCategory(setting.category);
+    // Scroll to setting element after a brief delay for category change
+    setTimeout(() => {
+      const element = document.getElementById(`setting-${setting.key}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.classList.add('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        setTimeout(() => {
+          element.classList.remove('ring-2', 'ring-blue-500', 'ring-opacity-50');
+        }, 2000);
+      }
+    }, 100);
   };
 
   const renderSettingInput = (setting) => {
@@ -253,148 +331,235 @@ const SystemSettingsPage = () => {
         <p className="text-gray-600 mt-2">Configure system-wide application settings</p>
       </div>
 
-      {/* Category Filter */}
+      {/* Search Section */}
       <div className="bg-white rounded-lg shadow-sm p-6">
-        <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
-        <select
-          value={selectedCategory}
-          onChange={(e) => setSelectedCategory(e.target.value)}
-          className="block w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
-        >
-          <option value="all">All Categories</option>
-          {categories.map(category => (
-            <option key={category} value={category}>
-              {getCategoryIcon(category)} {category.charAt(0).toUpperCase() + category.slice(1)}
-            </option>
-          ))}
-        </select>
+        <h2 className="text-lg font-medium text-gray-900 mb-4">🔍 Search Settings</h2>
+        {/* Debug info */}
+        <div className="mb-2 text-xs text-gray-500">
+          Debug: Search Mode: {isSearchMode ? 'ON' : 'OFF'} | 
+          Results: {searchResults.length} | 
+          All Settings: {allSettings.length} | 
+          Search Term: "{currentSearchTerm}" |
+          Results Keys: {searchResults.slice(0,3).map(s => s.key).join(', ')}
+        </div>
+        <ErrorBoundary fallbackMessage="Search functionality temporarily unavailable">
+          <SettingsSearch
+            settings={allSettings}
+            onSearchResults={(results, hasActiveSearch, searchTerm) => handleSearchResults(results, hasActiveSearch, searchTerm)}
+            placeholder="Search by name, description, keywords, or category..."
+          />
+        </ErrorBoundary>
       </div>
 
-      {/* Settings by Category */}
-      {categories.map(category => (
-        <div key={category} className={`border-l-4 rounded-lg shadow-sm ${getCategoryColor(category)}`}>
-          <div className="p-6">
-            <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
-              <span className="text-2xl mr-3">{getCategoryIcon(category)}</span>
-              {category.charAt(0).toUpperCase() + category.slice(1)} Settings
-            </h2>
+      {/* Category Filter - Hidden in search mode */}
+      {!isSearchMode && (
+        <div className="bg-white rounded-lg shadow-sm p-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">Filter by Category</label>
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="block w-64 px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-amber-500 focus:border-amber-500"
+          >
+            <option value="all">All Categories</option>
+            {categories.map(category => (
+              <option key={category} value={category}>
+                {getCategoryIcon(category)} {category.charAt(0).toUpperCase() + category.slice(1)}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
-            {/* Enhanced Currency Management for Localization Category */}
-            {category === 'localization' && (
-              <div className="space-y-6 mb-6">
-                <CurrencyManagementPanel />
-                <LocalizationTestPanel />
+      {/* Conditional Content: Search Results or Category View */}
+      {isSearchMode ? (
+        /* Search Results */
+        <ErrorBoundary fallbackMessage="Search results temporarily unavailable">
+          <SettingsSearchResults
+            searchResults={searchResults}
+            searchTerm={currentSearchTerm}
+            onSettingClick={handleSettingClick}
+            renderSettingControl={(setting) => {
+            const hasChanges = editedValues[setting.key] !== undefined;
+            const isSaving = saving[setting.key];
+            
+            return (
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-end">
+                {/* Setting Input */}
+                <div>
+                  {renderSettingInput(setting)}
+                  
+                  {/* Validation info */}
+                  {setting.validation_rules && (
+                    <div className="mt-1 text-xs text-gray-500">
+                      {setting.validation_rules.minLength && `Min: ${setting.validation_rules.minLength} chars`}
+                      {setting.validation_rules.maxLength && `Max: ${setting.validation_rules.maxLength} chars`}
+                      {setting.validation_rules.min !== undefined && `Min: ${setting.validation_rules.min}`}
+                      {setting.validation_rules.max !== undefined && `Max: ${setting.validation_rules.max}`}
+                      {setting.validation_rules.pattern && 'Format validation applied'}
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center justify-end space-x-2">
+                  {hasChanges && !setting.is_readonly && (
+                    <>
+                      <button
+                        onClick={() => resetSetting(setting.key, setting.value)}
+                        className="px-3 py-1 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                        disabled={isSaving}
+                      >
+                        Reset
+                      </button>
+                      <button
+                        onClick={() => saveSetting(setting.key, editedValues[setting.key])}
+                        disabled={isSaving}
+                        className="px-3 py-1 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+                      >
+                        {isSaving ? 'Saving...' : 'Save'}
+                      </button>
+                    </>
+                  )}
+                  {!hasChanges && (
+                    <span className="text-sm text-green-600">Saved</span>
+                  )}
+                </div>
               </div>
-            )}
+            );
+          }}
+        />
+        </ErrorBoundary>
+      ) : (
+        /* Regular Category View */
+        categories.map(category => (
+          <div key={category} className={`border-l-4 rounded-lg shadow-sm ${getCategoryColor(category)}`}>
+            <div className="p-6">
+              <h2 className="text-xl font-semibold text-gray-900 mb-4 flex items-center">
+                <span className="text-2xl mr-3">{getCategoryIcon(category)}</span>
+                {category.charAt(0).toUpperCase() + category.slice(1)} Settings
+              </h2>
 
-            <div className="space-y-6">
-              {settingsByCategory[category].map(setting => {
-                const hasChanges = editedValues[setting.key] !== undefined;
-                const isSaving = saving[setting.key];
+              {/* Enhanced Currency Management for Localization Category */}
+              {category === 'localization' && (
+                <div className="space-y-6 mb-6">
+                  <CurrencyManagementPanel />
+                  <LocalizationTestPanel />
+                </div>
+              )}
 
-                return (
-                  <div key={setting.key} className="bg-white p-4 rounded-md border border-gray-200">
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-                      {/* Setting Info */}
-                      <div>
-                        <h3 className="font-medium text-gray-900">{setting.key}</h3>
-                        {setting.description && (
-                          <p className="text-sm text-gray-600 mt-1">{setting.description}</p>
-                        )}
-                        <div className="flex items-center mt-2 space-x-2">
-                          <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
-                            {setting.data_type}
-                          </span>
-                          {setting.is_readonly && (
-                            <span className="inline-flex px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
-                              Read-only
+              <div className="space-y-6">
+                {settingsByCategory[category].map(setting => {
+                  const hasChanges = editedValues[setting.key] !== undefined;
+                  const isSaving = saving[setting.key];
+
+                  return (
+                    <div 
+                      key={setting.key} 
+                      id={`setting-${setting.key}`}
+                      className="bg-white p-4 rounded-md border border-gray-200 transition-all duration-300"
+                    >
+                      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+                        {/* Setting Info */}
+                        <div>
+                          <h3 className="font-medium text-gray-900">{setting.key}</h3>
+                          {setting.description && (
+                            <p className="text-sm text-gray-600 mt-1">{setting.description}</p>
+                          )}
+                          <div className="flex items-center mt-2 space-x-2">
+                            <span className="inline-flex px-2 py-1 text-xs font-medium bg-gray-100 text-gray-800 rounded">
+                              {setting.data_type}
                             </span>
+                            {setting.is_readonly && (
+                              <span className="inline-flex px-2 py-1 text-xs font-medium bg-yellow-100 text-yellow-800 rounded">
+                                Read-only
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Setting Input */}
+                        <div>
+                          {renderSettingInput(setting)}
+                          
+                          {/* Image preview for image URL settings */}
+                          {(setting.key.includes('image') || setting.key.includes('url')) && 
+                           setting.data_type === 'string' && 
+                           (editedValues[setting.key] || setting.value) && (
+                            <div className="mt-2">
+                              <img 
+                                src={editedValues[setting.key] || setting.value} 
+                                alt="Preview" 
+                                className="h-16 w-16 object-contain border border-gray-200 rounded"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                                onLoad={(e) => {
+                                  e.target.style.display = 'block';
+                                }}
+                              />
+                            </div>
+                          )}
+
+                          {/* Color preview for color settings */}
+                          {setting.key.includes('color') && 
+                           setting.data_type === 'string' && 
+                           (editedValues[setting.key] || setting.value) && (
+                            <div className="mt-2 flex items-center space-x-2">
+                              <div 
+                                className="w-8 h-8 border border-gray-200 rounded"
+                                style={{ backgroundColor: editedValues[setting.key] || setting.value }}
+                              ></div>
+                              <span className="text-sm text-gray-600">
+                                {editedValues[setting.key] || setting.value}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Validation info */}
+                          {setting.validation_rules && (
+                            <div className="mt-1 text-xs text-gray-500">
+                              {setting.validation_rules.minLength && `Min: ${setting.validation_rules.minLength} chars`}
+                              {setting.validation_rules.maxLength && `Max: ${setting.validation_rules.maxLength} chars`}
+                              {setting.validation_rules.min !== undefined && `Min: ${setting.validation_rules.min}`}
+                              {setting.validation_rules.max !== undefined && `Max: ${setting.validation_rules.max}`}
+                              {setting.validation_rules.pattern && 'Format validation applied'}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex items-center justify-end space-x-2">
+                          {hasChanges && !setting.is_readonly && (
+                            <>
+                              <button
+                                onClick={() => resetSetting(setting.key, setting.value)}
+                                className="px-3 py-1 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
+                                disabled={isSaving}
+                              >
+                                Reset
+                              </button>
+                              <button
+                                onClick={() => saveSetting(setting.key, editedValues[setting.key])}
+                                disabled={isSaving}
+                                className="px-3 py-1 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
+                              >
+                                {isSaving ? 'Saving...' : 'Save'}
+                              </button>
+                            </>
+                          )}
+                          {!hasChanges && (
+                            <span className="text-sm text-green-600">Saved</span>
                           )}
                         </div>
                       </div>
-
-                      {/* Setting Input */}
-                      <div>
-                        {renderSettingInput(setting)}
-                        
-                        {/* Image preview for image URL settings */}
-                        {(setting.key.includes('image') || setting.key.includes('url')) && 
-                         setting.data_type === 'string' && 
-                         (editedValues[setting.key] || setting.value) && (
-                          <div className="mt-2">
-                            <img 
-                              src={editedValues[setting.key] || setting.value} 
-                              alt="Preview" 
-                              className="h-16 w-16 object-contain border border-gray-200 rounded"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                              }}
-                              onLoad={(e) => {
-                                e.target.style.display = 'block';
-                              }}
-                            />
-                          </div>
-                        )}
-
-                        {/* Color preview for color settings */}
-                        {setting.key.includes('color') && 
-                         setting.data_type === 'string' && 
-                         (editedValues[setting.key] || setting.value) && (
-                          <div className="mt-2 flex items-center space-x-2">
-                            <div 
-                              className="w-8 h-8 border border-gray-200 rounded"
-                              style={{ backgroundColor: editedValues[setting.key] || setting.value }}
-                            ></div>
-                            <span className="text-sm text-gray-600">
-                              {editedValues[setting.key] || setting.value}
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Validation info */}
-                        {setting.validation_rules && (
-                          <div className="mt-1 text-xs text-gray-500">
-                            {setting.validation_rules.minLength && `Min: ${setting.validation_rules.minLength} chars`}
-                            {setting.validation_rules.maxLength && `Max: ${setting.validation_rules.maxLength} chars`}
-                            {setting.validation_rules.min !== undefined && `Min: ${setting.validation_rules.min}`}
-                            {setting.validation_rules.max !== undefined && `Max: ${setting.validation_rules.max}`}
-                            {setting.validation_rules.pattern && 'Format validation applied'}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Actions */}
-                      <div className="flex items-center justify-end space-x-2">
-                        {hasChanges && !setting.is_readonly && (
-                          <>
-                            <button
-                              onClick={() => resetSetting(setting.key, setting.value)}
-                              className="px-3 py-1 text-sm border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
-                              disabled={isSaving}
-                            >
-                              Reset
-                            </button>
-                            <button
-                              onClick={() => saveSetting(setting.key, editedValues[setting.key])}
-                              disabled={isSaving}
-                              className="px-3 py-1 text-sm bg-amber-600 text-white rounded hover:bg-amber-700 disabled:opacity-50"
-                            >
-                              {isSaving ? 'Saving...' : 'Save'}
-                            </button>
-                          </>
-                        )}
-                        {!hasChanges && (
-                          <span className="text-sm text-green-600">Saved</span>
-                        )}
-                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      ))}
+        ))
+      )}
 
       {categories.length === 0 && (
         <div className="text-center py-12">
