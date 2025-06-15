@@ -12,13 +12,11 @@ RUN npm install
 # Copy application code
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S frontend -u 1001
-
-# Change ownership of the app directory
-RUN chown -R frontend:nodejs /app
-USER frontend
+# Run as root for development
+# RUN addgroup -S nodejs
+# RUN adduser -S frontend -G nodejs
+# RUN chown -R frontend:nodejs /app
+# USER frontend
 
 # Expose port
 EXPOSE 3000

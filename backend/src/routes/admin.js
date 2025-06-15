@@ -236,4 +236,47 @@ router.post('/email/reminders/event/:eventId', EmailController.sendManualEventRe
 // @access  Private (Admin only)
 router.post('/email/weekly-digest', EmailController.sendWeeklyDigest);
 
+// Webhook Management Routes
+// @route   GET /api/admin/webhooks
+// @desc    Get all webhooks
+// @access  Private (Admin only)
+router.get('/webhooks', AdminController.getWebhooks);
+
+// @route   POST /api/admin/webhooks
+// @desc    Create new webhook
+// @access  Private (Admin only)
+router.post('/webhooks', AdminController.createWebhook);
+
+// @route   POST /api/admin/webhooks/:webhookId/test
+// @desc    Test webhook
+// @access  Private (Admin only)
+router.post('/webhooks/:webhookId/test', AdminController.testWebhook);
+
+// @route   GET /api/admin/webhooks/logs
+// @desc    Get webhook logs
+// @access  Private (Admin only)
+router.get('/webhooks/logs', AdminController.getWebhookLogs);
+
+// Third-Party Integration Routes
+// @route   POST /api/admin/integrations/test
+// @desc    Test third-party integration
+// @access  Private (Admin only)
+router.post('/integrations/test', AdminController.testIntegration);
+
+// Rate Limiting Routes
+// @route   GET /api/admin/rate-limiting/settings
+// @desc    Get rate limiting settings
+// @access  Private (Admin only)
+router.get('/rate-limiting/settings', AdminController.getRateLimitSettings);
+
+// @route   POST /api/admin/rate-limiting/settings
+// @desc    Update rate limiting settings
+// @access  Private (Admin only)
+router.post('/rate-limiting/settings', AdminController.updateRateLimitSettings);
+
+// @route   GET /api/admin/rate-limiting/stats
+// @desc    Get rate limiting statistics
+// @access  Private (Admin only)
+router.get('/rate-limiting/stats', AdminController.getRateLimitStats);
+
 module.exports = router;

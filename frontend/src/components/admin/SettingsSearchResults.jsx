@@ -1,5 +1,6 @@
 import React from 'react';
-import { Search, Settings, ChevronRight } from 'lucide-react';
+import { Search, Settings, ChevronRight, Target, Zap } from 'lucide-react';
+import SearchHighlight from './SearchHighlight';
 
 const SettingsSearchResults = ({ 
   searchResults = [], 
@@ -8,23 +9,21 @@ const SettingsSearchResults = ({
   renderSettingControl,
   className = ""
 }) => {
-  // Highlight matching text in search results
-  const highlightText = (text, query) => {
-    if (!query.trim()) return text;
-    
-    const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    const parts = text.split(regex);
-    
-    return parts.map((part, index) => 
-      regex.test(part) ? (
-        <mark 
-          key={index} 
-          className="bg-yellow-200 px-1 rounded text-black"
-        >
-          {part}
-        </mark>
-      ) : part
-    );
+  // Get search score color for fuzzy search results
+  const getScoreColor = (score) => {
+    if (score === undefined) return '';
+    if (score < 0.2) return 'text-green-600'; // Excellent match
+    if (score < 0.4) return 'text-blue-600';  // Good match
+    if (score < 0.6) return 'text-yellow-600'; // Fair match
+    return 'text-red-600'; // Poor match
+  };
+
+  const getScoreLabel = (score) => {
+    if (score === undefined) return '';
+    if (score < 0.2) return 'Excellent';
+    if (score < 0.4) return 'Good';
+    if (score < 0.6) return 'Fair';
+    return 'Poor';
   };
 
   // Get category icon and color
@@ -111,8 +110,20 @@ const SettingsSearchResults = ({
                         {/* Setting Header */}
                         <div className="flex items-center space-x-3 mb-2">
                           <h4 className="text-sm font-medium text-gray-900">
-                            {highlightText(title, searchTerm)}
+                            <SearchHighlight 
+                              text={title} 
+                              searchTerm={searchTerm}
+                              matches={setting._searchMatches}
+                            />
                           </h4>
+                          
+                          {/* Search Score (for fuzzy search) */}
+                          {setting._searchScore !== undefined && (
+                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 ${getScoreColor(setting._searchScore)}`}>
+                              <Target className="h-3 w-3 mr-1" />
+                              {getScoreLabel(setting._searchScore)}
+                            </span>
+                          )}
                           
                           {/* Weight Indicator */}
                           {searchData.weight === 'high' && (
@@ -134,13 +145,21 @@ const SettingsSearchResults = ({
 
                         {/* Setting Description */}
                         <p className="text-sm text-gray-600 mb-3">
-                          {highlightText(setting.description || 'No description available', searchTerm)}
+                          <SearchHighlight 
+                            text={setting.description || 'No description available'} 
+                            searchTerm={searchTerm}
+                            matches={setting._searchMatches}
+                          />
                         </p>
 
                         {/* Setting Key */}
                         <div className="flex items-center space-x-2 mb-3">
                           <code className="px-2 py-1 bg-gray-100 rounded text-xs font-mono text-gray-800">
-                            {highlightText(setting.key, searchTerm)}
+                            <SearchHighlight 
+                              text={setting.key} 
+                              searchTerm={searchTerm}
+                              matches={setting._searchMatches}
+                            />
                           </code>
                           <span className="text-xs text-gray-500">
                             {setting.data_type}
@@ -150,20 +169,28 @@ const SettingsSearchResults = ({
                         {/* Keywords and Synonyms */}
                         {(searchData.keywords?.length > 0 || searchData.synonyms?.length > 0) && (
                           <div className="flex flex-wrap gap-1 mb-3">
-                            {searchData.keywords?.map(keyword => (
+                            {searchData.keywords?.map((keyword, index) => (
                               <span 
-                                key={keyword}
+                                key={`keyword-${index}-${keyword}`}
                                 className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-50 text-blue-700"
                               >
-                                {highlightText(keyword, searchTerm)}
+                                <SearchHighlight 
+                                  text={keyword} 
+                                  searchTerm={searchTerm}
+                                  matches={setting._searchMatches}
+                                />
                               </span>
                             ))}
-                            {searchData.synonyms?.map(synonym => (
+                            {searchData.synonyms?.map((synonym, index) => (
                               <span 
-                                key={synonym}
+                                key={`synonym-${index}-${synonym}`}
                                 className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-50 text-purple-700"
                               >
-                                {highlightText(synonym, searchTerm)}
+                                <SearchHighlight 
+                                  text={synonym} 
+                                  searchTerm={searchTerm}
+                                  matches={setting._searchMatches}
+                                />
                               </span>
                             ))}
                           </div>

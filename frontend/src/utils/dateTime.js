@@ -222,8 +222,10 @@ export const useDateTime = () => {
   const locale = settings?.locale || 'en-US';
   const timezone = settings?.timezone || getUserTimezone();
   const dateFormat = settings?.date_format || 'medium';
-  const timeFormat = settings?.time_format || 'short';
-  const use24HourTime = settings?.use_24_hour_time || false;
+  const timeFormat = settings?.time_format || '12h';
+  const firstDayOfWeek = settings?.first_day_of_week || 0;
+  const weekNumbering = settings?.week_numbering || 'iso';
+  const use24HourTime = timeFormat === '24h';
   
   /**
    * Format date using admin settings
@@ -236,8 +238,29 @@ export const useDateTime = () => {
    * Format time using admin settings
    */
   const formatTimeWithSettings = (date, customFormat = null) => {
-    const format = customFormat || timeFormat;
-    return formatTime(date, format, locale, timezone);
+    if (!date) return '';
+    
+    try {
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) {
+        return '';
+      }
+      
+      const options = {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: !use24HourTime
+      };
+      
+      if (timezone) {
+        options.timeZone = timezone;
+      }
+      
+      return new Intl.DateTimeFormat(locale, options).format(dateObj);
+    } catch (error) {
+      console.error('Error formatting time with settings:', error);
+      return new Date(date).toLocaleTimeString();
+    }
   };
   
   /**
@@ -307,6 +330,65 @@ export const useDateTime = () => {
       return diffYears === 1 ? 'Last year' : `${diffYears} years ago`;
     }
   };
+
+  /**
+   * Get the week number according to the configured numbering system
+   * @param {Date} date - Date to get week number for
+   * @returns {number} Week number
+   */
+  const getWeekNumber = (date) => {
+    if (!date) return 0;
+    
+    const dateObj = new Date(date);
+    
+    if (weekNumbering === 'iso') {
+      // ISO 8601 week numbering
+      const d = new Date(Date.UTC(dateObj.getFullYear(), dateObj.getMonth(), dateObj.getDate()));
+      const dayNum = d.getUTCDay() || 7;
+      d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+      return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    } else {
+      // US week numbering (starts on Sunday)
+      const onejan = new Date(dateObj.getFullYear(), 0, 1);
+      const millisecsInDay = 86400000;
+      return Math.ceil((((dateObj - onejan) / millisecsInDay) + onejan.getDay() + 1) / 7);
+    }
+  };
+
+  /**
+   * Get calendar weeks for a month with proper first day of week
+   * @param {number} year - Year
+   * @param {number} month - Month (0-11)
+   * @returns {Array} Array of week arrays
+   */
+  const getMonthWeeks = (year, month) => {
+    const weeks = [];
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    
+    // Adjust first day based on setting (0 = Sunday, 1 = Monday)
+    let startDate = new Date(firstDay);
+    const dayOffset = (firstDay.getDay() - firstDayOfWeek + 7) % 7;
+    startDate.setDate(startDate.getDate() - dayOffset);
+    
+    while (startDate <= lastDay) {
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(startDate);
+        date.setDate(startDate.getDate() + i);
+        week.push({
+          date: new Date(date),
+          inCurrentMonth: date.getMonth() === month,
+          weekNumber: getWeekNumber(date)
+        });
+      }
+      weeks.push(week);
+      startDate.setDate(startDate.getDate() + 7);
+    }
+    
+    return weeks;
+  };
   
   return {
     // Basic formatting functions
@@ -319,6 +401,10 @@ export const useDateTime = () => {
     formatEventDate,
     formatPurchaseDate,
     
+    // Calendar functions
+    getWeekNumber,
+    getMonthWeeks,
+    
     // Utility functions
     getUserTimezone,
     convertToTimezone,
@@ -328,6 +414,8 @@ export const useDateTime = () => {
     timezone,
     dateFormat,
     timeFormat,
+    firstDayOfWeek,
+    weekNumbering,
     use24HourTime,
     loading,
     

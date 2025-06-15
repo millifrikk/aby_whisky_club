@@ -117,6 +117,24 @@ const User = sequelize.define('User', {
     type: DataTypes.DATE,
     allowNull: true
   },
+  two_factor_enabled: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: false,
+    allowNull: false
+  },
+  two_factor_secret: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  two_factor_backup_codes: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    comment: 'JSON array of encrypted backup codes'
+  },
+  two_factor_last_used: {
+    type: DataTypes.DATE,
+    allowNull: true
+  },
   email_notifications_enabled: {
     type: DataTypes.BOOLEAN,
     defaultValue: true,
@@ -174,14 +192,14 @@ User.prototype.isAccountLocked = function() {
   return this.account_locked_until && this.account_locked_until > new Date();
 };
 
-User.prototype.incrementFailedAttempts = async function(maxAttempts = 5) {
+User.prototype.incrementFailedAttempts = async function(maxAttempts = 5, lockoutDurationMinutes = 30) {
   const newAttempts = this.failed_login_attempts + 1;
   this.failed_login_attempts = newAttempts;
   this.last_failed_login = new Date();
   
   if (newAttempts >= maxAttempts) {
-    // Lock account for 15 minutes
-    this.account_locked_until = new Date(Date.now() + 15 * 60 * 1000);
+    // Lock account for configured duration
+    this.account_locked_until = new Date(Date.now() + lockoutDurationMinutes * 60 * 1000);
   }
   
   await this.save();
@@ -228,6 +246,105 @@ User.prototype.clearEmailVerificationToken = function() {
 User.prototype.clearPasswordResetToken = function() {
   this.password_reset_token = null;
   this.password_reset_expires = null;
+};
+
+// Two-Factor Authentication methods
+User.prototype.enable2FA = async function(secret, backupCodes) {
+  const { hashBackupCodes } = require('../utils/twoFactorAuth');
+  
+  this.two_factor_enabled = true;
+  this.two_factor_secret = secret;
+  
+  if (backupCodes && backupCodes.length > 0) {
+    const hashedCodes = await hashBackupCodes(backupCodes);
+    this.two_factor_backup_codes = JSON.stringify(hashedCodes);
+  }
+  
+  await this.save();
+};
+
+User.prototype.disable2FA = async function() {
+  this.two_factor_enabled = false;
+  this.two_factor_secret = null;
+  this.two_factor_backup_codes = null;
+  this.two_factor_last_used = null;
+  
+  await this.save();
+};
+
+User.prototype.verify2FA = async function(token) {
+  const { verifyTwoFactorToken, verifyBackupCode, removeUsedBackupCode, isValidTokenFormat, isValidBackupCodeFormat } = require('../utils/twoFactorAuth');
+  
+  if (!this.two_factor_enabled || !this.two_factor_secret) {
+    return { success: false, error: '2FA not enabled for this user' };
+  }
+  
+  // Try TOTP token first
+  if (isValidTokenFormat(token)) {
+    const isValid = verifyTwoFactorToken(this.two_factor_secret, token);
+    
+    if (isValid) {
+      this.two_factor_last_used = new Date();
+      await this.save();
+      
+      return { success: true, method: 'totp' };
+    }
+  }
+  
+  // Try backup code
+  if (isValidBackupCodeFormat(token) && this.two_factor_backup_codes) {
+    try {
+      const hashedCodes = JSON.parse(this.two_factor_backup_codes);
+      const cleanToken = token.replace(/-/g, '').toUpperCase();
+      const usedIndex = await verifyBackupCode(cleanToken, hashedCodes);
+      
+      if (usedIndex >= 0) {
+        // Remove used backup code
+        const updatedCodes = removeUsedBackupCode(hashedCodes, usedIndex);
+        this.two_factor_backup_codes = JSON.stringify(updatedCodes);
+        this.two_factor_last_used = new Date();
+        await this.save();
+        
+        return { 
+          success: true, 
+          method: 'backup',
+          remaining_codes: updatedCodes.length
+        };
+      }
+    } catch (error) {
+      console.error('Error verifying backup code:', error);
+    }
+  }
+  
+  return { success: false, error: 'Invalid 2FA token' };
+};
+
+User.prototype.regenerateBackupCodes = async function() {
+  const { generateBackupCodes, hashBackupCodes } = require('../utils/twoFactorAuth');
+  
+  const newCodes = generateBackupCodes();
+  const hashedCodes = await hashBackupCodes(newCodes);
+  
+  this.two_factor_backup_codes = JSON.stringify(hashedCodes);
+  await this.save();
+  
+  return newCodes;
+};
+
+User.prototype.get2FAStatus = function() {
+  const { get2FAStatus } = require('../utils/twoFactorAuth');
+  return get2FAStatus(this);
+};
+
+User.prototype.getRemainingBackupCodes = function() {
+  if (!this.two_factor_backup_codes) return 0;
+  
+  try {
+    const codes = JSON.parse(this.two_factor_backup_codes);
+    return Array.isArray(codes) ? codes.length : 0;
+  } catch {
+    return 0;
+  }
 };
 
 // Class methods

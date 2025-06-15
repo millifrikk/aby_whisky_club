@@ -23,6 +23,9 @@ import WishlistPage from './pages/WishlistPage';
 import ComparisonPage from './pages/ComparisonPage';
 import EventsPage from './pages/EventsPage';
 import EventDetailPage from './pages/EventDetailPage';
+import EmailVerificationPage from './pages/EmailVerificationPage';
+import PasswordResetPage from './pages/PasswordResetPage';
+import SessionWarning from './components/security/SessionWarning';
 
 // Admin Pages
 import AdminDashboard from './pages/admin/AdminDashboard';
@@ -53,7 +56,7 @@ function AppContent() {
   const { footerText } = useAppearance();
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
       <Navigation />
 
           <main className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
@@ -88,6 +91,10 @@ function AppContent() {
                   </ProtectedRoute>
                 } 
               />
+              
+              {/* Email verification and password reset routes */}
+              <Route path="/verify-email" element={<EmailVerificationPage />} />
+              <Route path="/reset-password" element={<PasswordResetPage />} />
 
               {/* Protected routes */}
               <Route 
@@ -246,6 +253,9 @@ function AppContent() {
               </div>
             </div>
           </footer>
+
+          {/* Session warning */}
+          <SessionWarning />
 
           {/* Toast notifications */}
           <Toaster

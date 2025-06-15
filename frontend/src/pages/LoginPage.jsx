@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import useUserManagement from '../hooks/useUserManagement';
+import TwoFactorLogin from '../components/security/TwoFactorLogin';
 
 const LoginPage = () => {
   const navigate = useNavigate();
@@ -12,6 +13,8 @@ const LoginPage = () => {
   const { t } = useTranslation();
   const { allowRegistration } = useUserManagement();
   const [showPassword, setShowPassword] = useState(false);
+  const [show2FA, setShow2FA] = useState(false);
+  const [tempUserId, setTempUserId] = useState(null);
 
   const {
     register,
@@ -26,6 +29,13 @@ const LoginPage = () => {
     const result = await login(data);
     
     if (result.success) {
+      // Check if 2FA is required
+      if (result.requires2FA) {
+        setTempUserId(result.tempUserId);
+        setShow2FA(true);
+        return;
+      }
+      
       // Redirect to the page they tried to visit or home
       navigate(from, { replace: true });
     } else {
@@ -35,6 +45,30 @@ const LoginPage = () => {
       });
     }
   };
+
+  const handle2FASuccess = (data) => {
+    // Store the token and user data (done in TwoFactorLogin component)
+    // Redirect to the page they tried to visit or home
+    navigate(from, { replace: true });
+  };
+
+  const handle2FABack = () => {
+    setShow2FA(false);
+    setTempUserId(null);
+  };
+
+  // Show 2FA login if required
+  if (show2FA) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <TwoFactorLogin 
+          tempUserId={tempUserId}
+          onSuccess={handle2FASuccess}
+          onBack={handle2FABack}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -153,7 +187,7 @@ const LoginPage = () => {
 
           <div className="text-center">
             <Link
-              to="/forgot-password"
+              to="/reset-password"
               className="text-sm text-amber-600 hover:text-amber-500"
             >
               {t('auth.forgot_password')}

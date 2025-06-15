@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../contexts/SettingsContext';
 import { useCurrency } from '../../utils/currency';
 import { useDateTime } from '../../utils/dateTime';
+import { useNumberFormatting } from '../../utils/numberFormatting';
 import { 
   getAvailableLanguages, 
   getPotentialLanguages, 
@@ -17,7 +18,8 @@ const LocalizationTestPanel = () => {
   const { t, i18n } = useTranslation();
   const { settings, refreshSettings } = useSettings();
   const { symbol: currencySymbol, code: currencyCode, formatPrice } = useCurrency();
-  const { formatDate, formatTime, formatRelativeTime, formatEventDate, locale, timezone } = useDateTime();
+  const { formatDate, formatTime, formatRelativeTime, formatEventDate, locale, timezone, timeFormat, firstDayOfWeek, weekNumbering } = useDateTime();
+  const { formatNumber, formatCurrency, formatPercentage, getFormatExamples, numberFormat, decimalSeparator, thousandsSeparator } = useNumberFormatting();
   
   const [selectedTestLanguage, setSelectedTestLanguage] = useState(i18n.language);
   const [testCurrency, setTestCurrency] = useState(currencyCode);
@@ -122,7 +124,7 @@ const LocalizationTestPanel = () => {
       {/* Current Status */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
         <h4 className="font-medium text-blue-900 mb-3">Current Localization Status</h4>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-blue-700 font-medium">Language:</span>
             <div className="text-blue-800">{selectedTestLanguage.toUpperCase()} - {t('language.' + selectedTestLanguage)}</div>
@@ -132,8 +134,26 @@ const LocalizationTestPanel = () => {
             <div className="text-blue-800">{currencySymbol} {currencyCode}</div>
           </div>
           <div>
-            <span className="text-blue-700 font-medium">Locale:</span>
-            <div className="text-blue-800">{locale}</div>
+            <span className="text-blue-700 font-medium">Numbers:</span>
+            <div className="text-blue-800">{numberFormat} format</div>
+          </div>
+          <div>
+            <span className="text-blue-700 font-medium">Time:</span>
+            <div className="text-blue-800">{timeFormat} format</div>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm mt-3 pt-3 border-t border-blue-200">
+          <div>
+            <span className="text-blue-700 font-medium">Separators:</span>
+            <div className="text-blue-800">'{decimalSeparator}' / '{thousandsSeparator}'</div>
+          </div>
+          <div>
+            <span className="text-blue-700 font-medium">Week Start:</span>
+            <div className="text-blue-800">{firstDayOfWeek === 0 ? 'Sunday' : 'Monday'}</div>
+          </div>
+          <div>
+            <span className="text-blue-700 font-medium">Week System:</span>
+            <div className="text-blue-800">{weekNumbering.toUpperCase()}</div>
           </div>
         </div>
       </div>
@@ -168,35 +188,34 @@ const LocalizationTestPanel = () => {
             </label>
             <div className="space-y-2">
               {availableLanguages.map(lang => (
-                <button
+                <div
                   key={lang.code}
-                  onClick={() => handleLanguageTest(lang.code)}
-                  className={`w-full flex items-center justify-between p-2 rounded text-left transition-colors ${
+                  className={`w-full flex items-center justify-between p-2 rounded transition-colors ${
                     selectedTestLanguage === lang.code
                       ? 'bg-amber-50 border border-amber-300 text-amber-800'
-                      : 'bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                      : 'bg-gray-50 border border-gray-200'
                   }`}
                 >
-                  <div className="flex items-center">
+                  <button
+                    onClick={() => handleLanguageTest(lang.code)}
+                    className="flex items-center flex-1 text-left hover:opacity-75"
+                  >
                     <span className="text-lg mr-3">{lang.flag}</span>
                     <div>
                       <div className="font-medium">{lang.nativeName}</div>
                       <div className="text-xs text-gray-500">{lang.name}</div>
                     </div>
-                  </div>
-                  <div className="text-right">
+                  </button>
+                  <div className="text-right ml-2">
                     <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        applyLanguageDefaults(lang.code);
-                      }}
+                      onClick={() => applyLanguageDefaults(lang.code)}
                       className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded hover:bg-blue-200"
                       title="Apply default locale and currency settings"
                     >
                       Apply Defaults
                     </button>
                   </div>
-                </button>
+                </div>
               ))}
             </div>
           </div>
@@ -291,7 +310,33 @@ const LocalizationTestPanel = () => {
               </div>
             </div>
             <div className="mt-2 text-xs text-gray-500">
-              Timezone: {timezone} | Locale: {locale}
+              Format: {timeFormat} | First Day: {firstDayOfWeek === 0 ? 'Sunday' : 'Monday'} | Week: {weekNumbering.toUpperCase()}
+            </div>
+          </div>
+          
+          {/* Number Formatting Test */}
+          <div className="bg-gray-50 rounded-lg p-4">
+            <h5 className="font-medium text-gray-800 mb-3">Number Formatting</h5>
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-600">Large Number:</span>
+                <span className="font-medium">{formatNumber(1234567.89)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Currency:</span>
+                <span className="font-medium">{formatCurrency(testAmount)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Percentage:</span>
+                <span className="font-medium">{formatPercentage(0.1234)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-gray-600">Small Decimal:</span>
+                <span className="font-medium">{formatNumber(12.34)}</span>
+              </div>
+            </div>
+            <div className="mt-2 text-xs text-gray-500">
+              Format: {numberFormat} | Decimal: '{decimalSeparator}' | Thousands: '{thousandsSeparator}'
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { authAPI } from '../services/api';
 import ChangePasswordForm from '../components/profile/ChangePasswordForm';
+import SecuritySettings from '../components/security/SecuritySettings';
 import toast from 'react-hot-toast';
 
 const ProfileSettingsPage = () => {
@@ -89,6 +90,7 @@ const ProfileSettingsPage = () => {
     { id: 'profile', name: 'Profile Information', icon: '👤' },
     { id: 'preferences', name: 'Whisky Preferences', icon: '🥃' },
     { id: 'password', name: 'Change Password', icon: '🔒' },
+    { id: 'security', name: 'Security', icon: '🛡️' },
     { id: 'account', name: 'Account Settings', icon: '⚙️' }
   ];
 
@@ -349,6 +351,14 @@ const ProfileSettingsPage = () => {
               </div>
               <ChangePasswordForm />
             </div>
+          )}
+
+          {/* Security Tab */}
+          {activeTab === 'security' && (
+            <SecuritySettings 
+              user={user} 
+              onUserUpdate={updateProfile}
+            />
           )}
 
           {/* Account Settings Tab */}

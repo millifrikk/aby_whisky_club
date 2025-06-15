@@ -3,7 +3,17 @@ const { User, SystemSetting } = require('../models');
 
 // Generate JWT token
 const generateToken = (payload, expiresIn = process.env.JWT_EXPIRE || '24h') => {
-  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn });
+  // Enhanced payload with session metadata
+  const enhancedPayload = {
+    userId: payload.userId,
+    email: payload.email,
+    role: payload.role,
+    sessionId: require('crypto').randomBytes(16).toString('hex'),
+    lastActivity: new Date(),
+    ...payload // Allow additional fields
+  };
+  
+  return jwt.sign(enhancedPayload, process.env.JWT_SECRET, { expiresIn });
 };
 
 // Verify JWT token

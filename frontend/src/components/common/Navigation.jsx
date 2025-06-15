@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import LanguageSelector from './LanguageSelector';
+import DarkModeToggle from './DarkModeToggle';
 import useAppearance from '../../hooks/useAppearance';
 import { useComparison } from '../../contexts/ComparisonContext';
 
@@ -81,8 +82,11 @@ const Navigation = () => {
           </div>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center space-x-8">
-            <LanguageSelector />
+          <nav className="hidden md:flex items-center space-x-6">
+            <div className="flex items-center space-x-2">
+              <LanguageSelector />
+              <DarkModeToggle />
+            </div>
             {visibleNavItems.map((item) => (
               <Link
                 key={item.path}

@@ -13,6 +13,9 @@ const initializeDatabase = require('./utils/initializeDatabase');
 // Import services
 const eventReminderService = require('./services/eventReminderService');
 
+// Import middleware
+const { sessionManager, updateLastActivity } = require('./middleware/sessionManager');
+
 // Import routes
 const authRoutes = require('./routes/auth');
 const whiskyRoutes = require('./routes/whiskies');
@@ -25,6 +28,7 @@ const wishlistRoutes = require('./routes/wishlist');
 const comparisonRoutes = require('./routes/comparison');
 const leaderboardRoutes = require('./routes/leaderboard');
 const analyticsRoutes = require('./routes/analytics');
+const twoFactorRoutes = require('./routes/twoFactor');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -42,6 +46,10 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
+
+// Session management middleware
+app.use(sessionManager);
+app.use(updateLastActivity);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -66,6 +74,7 @@ app.use('/api/wishlist', wishlistRoutes);
 app.use('/api/comparison', comparisonRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/2fa', twoFactorRoutes);
 
 // Basic API info
 app.get('/api', (req, res) => {

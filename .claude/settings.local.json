@@ -73,7 +73,9 @@
       "Bash(docker-compose stop:*)",
       "Bash(docker:*)",
       "Bash(git fetch:*)",
-      "Bash(git rev-parse:*)"
+      "Bash(git rev-parse:*)",
+      "Bash(npm run build:*)",
+      "Bash(mv:*)"
     ],
     "deny": []
   }

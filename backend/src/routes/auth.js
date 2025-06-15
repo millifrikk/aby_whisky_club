@@ -3,21 +3,59 @@ const router = express.Router();
 const AuthController = require('../controllers/authController');
 const { authenticateToken } = require('../middleware/auth');
 const { 
-  validateUserRegistration, 
   validateUserLogin,
   handleValidationErrors 
 } = require('../middleware/validation');
+const { 
+  validateRegistrationPassword,
+  validateNewPassword,
+  validateResetPassword,
+  getPasswordRequirements
+} = require('../middleware/passwordValidation');
 const { body } = require('express-validator');
 
+// Enhanced registration validation
+const validateEnhancedRegistration = [
+  body('email')
+    .isEmail()
+    .withMessage('Please provide a valid email address')
+    .normalizeEmail(),
+    
+  body('first_name')
+    .optional()
+    .isLength({ max: 100 })
+    .withMessage('First name must be less than 100 characters'),
+    
+  body('last_name')
+    .optional()
+    .isLength({ max: 100 })
+    .withMessage('Last name must be less than 100 characters'),
+    
+  handleValidationErrors
+];
+
 // @route   POST /api/auth/register
-// @desc    Register a new user
+// @desc    Register a new user with enhanced password validation
 // @access  Public
-router.post('/register', validateUserRegistration, AuthController.register);
+router.post('/register', validateEnhancedRegistration, validateRegistrationPassword, AuthController.register);
 
 // @route   POST /api/auth/login
 // @desc    Login user
 // @access  Public
 router.post('/login', validateUserLogin, AuthController.login);
+
+// @route   POST /api/auth/login/2fa
+// @desc    Complete login with 2FA verification
+// @access  Public
+router.post('/login/2fa', [
+  body('tempUserId')
+    .notEmpty()
+    .withMessage('User ID is required'),
+  body('token')
+    .notEmpty()
+    .withMessage('2FA token is required'),
+  handleValidationErrors
+], AuthController.complete2FALogin);
 
 // @route   POST /api/auth/logout
 // @desc    Logout user
@@ -61,7 +99,7 @@ router.put('/profile',
 );
 
 // @route   PUT /api/auth/change-password
-// @desc    Change user password
+// @desc    Change user password with enhanced validation
 // @access  Private
 router.put('/change-password',
   authenticateToken,
@@ -70,16 +108,21 @@ router.put('/change-password',
       .notEmpty()
       .withMessage('Current password is required'),
     
-    body('new_password')
-      .isLength({ min: 8 })
-      .withMessage('New password must be at least 8 characters long')
-      .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/)
-      .withMessage('New password must contain at least one uppercase letter, one lowercase letter, one number, and one special character'),
-    
     handleValidationErrors
   ],
+  validateNewPassword,
   AuthController.changePassword
 );
+
+// @route   GET /api/auth/password-requirements
+// @desc    Get password requirements for frontend
+// @access  Public
+router.get('/password-requirements', AuthController.getPasswordRequirements);
+
+// @route   GET /api/auth/session-info
+// @desc    Get session information for authenticated user
+// @access  Private
+router.get('/session-info', authenticateToken, AuthController.getSessionInfo);
 
 // @route   POST /api/auth/refresh
 // @desc    Refresh JWT token

@@ -3,6 +3,30 @@
   --color-primary: #d97706; /* Default amber-600 */
   --color-primary-dark: #f59e0b; /* Default amber-700 */
   --color-secondary: #f59e0b; /* Default amber-500 */
+  --color-primary-light: #fbbf24; /* Default amber-400 */
+  --color-primary-subtle: #fef3c7; /* Default amber-100 */
+  
+  /* Light mode colors */
+  --bg-primary: #ffffff;
+  --bg-secondary: #f9fafb;
+  --bg-tertiary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #6b7280;
+  --text-tertiary: #9ca3af;
+  --border-primary: #e5e7eb;
+  --border-secondary: #d1d5db;
+}
+
+/* Dark mode colors */
+.dark {
+  --bg-primary: #111827;
+  --bg-secondary: #1f2937;
+  --bg-tertiary: #374151;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --border-primary: #374151;
+  --border-secondary: #4b5563;
 }
 
 /* Dynamic theme utility classes */
@@ -14,6 +38,18 @@
   background-color: var(--color-primary-dark) !important;
 }
 
+.bg-primary-light {
+  background-color: var(--color-primary-light) !important;
+}
+
+.bg-primary-subtle {
+  background-color: var(--color-primary-subtle) !important;
+}
+
+.bg-secondary {
+  background-color: var(--color-secondary) !important;
+}
+
 .text-primary {
   color: var(--color-primary) !important;
 }
@@ -22,8 +58,20 @@
   color: var(--color-primary-dark) !important;
 }
 
+.text-primary-light {
+  color: var(--color-primary-light) !important;
+}
+
+.text-secondary {
+  color: var(--color-secondary) !important;
+}
+
 .border-primary {
   border-color: var(--color-primary) !important;
+}
+
+.border-primary-light {
+  border-color: var(--color-primary-light) !important;
 }
 
 .ring-primary {
@@ -39,12 +87,20 @@
   background-color: var(--color-primary-dark) !important;
 }
 
+.hover\:bg-primary-light:hover {
+  background-color: var(--color-primary-light) !important;
+}
+
 .hover\:text-primary:hover {
   color: var(--color-primary) !important;
 }
 
 .hover\:text-primary-dark:hover {
   color: var(--color-primary-dark) !important;
+}
+
+.hover\:text-secondary:hover {
+  color: var(--color-secondary) !important;
 }
 
 /* Focus states */
@@ -54,4 +110,87 @@
 
 .focus\:border-primary:focus {
   border-color: var(--color-primary) !important;
+}
+
+/* Gradient backgrounds */
+.bg-gradient-primary {
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-dark)) !important;
+}
+
+.bg-gradient-primary-light {
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-primary)) !important;
+}
+
+/* Dark mode utility classes */
+.bg-surface {
+  background-color: var(--bg-primary);
+}
+
+.bg-surface-secondary {
+  background-color: var(--bg-secondary);
+}
+
+.bg-surface-tertiary {
+  background-color: var(--bg-tertiary);
+}
+
+.text-content-primary {
+  color: var(--text-primary);
+}
+
+.text-content-secondary {
+  color: var(--text-secondary);
+}
+
+.text-content-tertiary {
+  color: var(--text-tertiary);
+}
+
+.border-surface {
+  border-color: var(--border-primary);
+}
+
+.border-surface-secondary {
+  border-color: var(--border-secondary);
+}
+
+/* Dark mode transitions */
+.theme-transition {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+/* Card and component styling */
+.card-theme {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.card-theme-secondary {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+/* Input and form styling */
+.input-theme {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.input-theme:focus {
+  border-color: var(--color-primary);
+  background-color: var(--bg-primary);
+}
+
+/* Button theming */
+.btn-theme-secondary {
+  background-color: var(--bg-secondary);
+  color: var(--text-primary);
+  border-color: var(--border-primary);
+}
+
+.btn-theme-secondary:hover {
+  background-color: var(--bg-tertiary);
 }

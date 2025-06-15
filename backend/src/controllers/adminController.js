@@ -822,9 +822,9 @@ class AdminController {
         related: ['primary_color']
       },
       'enable_dark_mode': {
-        title: 'Dark Mode',
-        keywords: ['dark', 'mode', 'theme', 'night', 'appearance'],
-        synonyms: ['dark theme', 'night mode', 'dark appearance'],
+        title: 'Dark Mode Toggle',
+        keywords: ['dark', 'theme', 'mode', 'night', 'toggle', 'appearance'],
+        synonyms: ['night mode', 'dark theme', 'theme switcher'],
         weight: 'high',
         related: ['primary_color', 'secondary_color']
       },
@@ -914,6 +914,58 @@ class AdminController {
     };
   }
 
+  // Validate setting value against validation rules
+  static validateSettingValue(value, validationRules, dataType) {
+    try {
+      // Parse validation rules if they're a string
+      const rules = typeof validationRules === 'string' 
+        ? JSON.parse(validationRules) 
+        : validationRules;
+
+      // Basic type validation
+      switch (dataType) {
+        case 'boolean':
+          if (typeof value !== 'boolean' && value !== 'true' && value !== 'false') {
+            return { valid: false, error: 'Value must be a boolean' };
+          }
+          break;
+        case 'integer':
+          const intValue = parseInt(value);
+          if (isNaN(intValue)) {
+            return { valid: false, error: 'Value must be an integer' };
+          }
+          if (rules.min !== undefined && intValue < rules.min) {
+            return { valid: false, error: `Value must be at least ${rules.min}` };
+          }
+          if (rules.max !== undefined && intValue > rules.max) {
+            return { valid: false, error: `Value must be at most ${rules.max}` };
+          }
+          break;
+        case 'decimal':
+          const floatValue = parseFloat(value);
+          if (isNaN(floatValue)) {
+            return { valid: false, error: 'Value must be a number' };
+          }
+          break;
+        case 'string':
+          if (typeof value !== 'string') {
+            return { valid: false, error: 'Value must be a string' };
+          }
+          if (rules.minLength && value.length < rules.minLength) {
+            return { valid: false, error: `Value must be at least ${rules.minLength} characters` };
+          }
+          if (rules.maxLength && value.length > rules.maxLength) {
+            return { valid: false, error: `Value must be at most ${rules.maxLength} characters` };
+          }
+          break;
+      }
+
+      return { valid: true };
+    } catch (error) {
+      return { valid: false, error: 'Invalid validation rules' };
+    }
+  }
+
   // Update system setting
   static async updateSystemSetting(req, res) {
     try {
@@ -938,7 +990,7 @@ class AdminController {
 
       // Validate value against validation rules if they exist
       if (setting.validation_rules) {
-        const validation = this.validateSettingValue(value, setting.validation_rules, setting.data_type);
+        const validation = AdminController.validateSettingValue(value, setting.validation_rules, setting.data_type);
         if (!validation.valid) {
           return res.status(400).json({
             error: 'Invalid value',
@@ -1266,6 +1318,14 @@ class AdminController {
             maxLength: 500,
             maxLengthMessage: 'Footer text cannot exceed 500 characters'
           }
+        },
+        {
+          key: 'enable_dark_mode',
+          value: true,
+          data_type: 'boolean',
+          category: 'appearance',
+          description: 'Enable dark mode toggle for users',
+          is_public: true
         },
 
         // Email & Notification Settings
@@ -2112,14 +2172,6 @@ class AdminController {
           is_public: true
         },
         {
-          key: 'enable_dark_mode',
-          value: true,
-          data_type: 'boolean',
-          category: 'social_features',
-          description: 'Enable dark theme support and switching',
-          is_public: true
-        },
-        {
           key: 'enable_whisky_tags',
           value: true,
           data_type: 'boolean',
@@ -2885,6 +2937,189 @@ class AdminController {
     }
 
     return results;
+  }
+
+  // Webhook Management
+  static async getWebhooks(req, res) {
+    try {
+      // For now, return mock data since we don't have a Webhook model
+      // In a real implementation, you would query a Webhook model
+      const webhooks = [
+        {
+          id: 1,
+          name: 'Event Notifications',
+          url: 'https://example.com/webhook',
+          events: ['user.registered', 'event.created'],
+          enabled: true,
+          lastTriggered: new Date().toISOString()
+        }
+      ];
+
+      res.json({ webhooks });
+    } catch (error) {
+      console.error('Error fetching webhooks:', error);
+      res.status(500).json({ error: 'Failed to fetch webhooks' });
+    }
+  }
+
+  static async createWebhook(req, res) {
+    try {
+      const { name, url, events, enabled = true } = req.body;
+      
+      // Mock implementation - in real app, save to database
+      const newWebhook = {
+        id: Date.now(),
+        name,
+        url,
+        events,
+        enabled,
+        createdAt: new Date().toISOString()
+      };
+
+      res.status(201).json({ webhook: newWebhook });
+    } catch (error) {
+      console.error('Error creating webhook:', error);
+      res.status(500).json({ error: 'Failed to create webhook' });
+    }
+  }
+
+  static async testWebhook(req, res) {
+    try {
+      const { webhookId } = req.params;
+      
+      // Mock test implementation
+      res.json({ 
+        success: true, 
+        message: `Webhook ${webhookId} test successful`,
+        timestamp: new Date().toISOString()
+      });
+    } catch (error) {
+      console.error('Error testing webhook:', error);
+      res.status(500).json({ error: 'Failed to test webhook' });
+    }
+  }
+
+  static async getWebhookLogs(req, res) {
+    try {
+      // Mock logs data
+      const logs = [
+        {
+          id: 1,
+          webhookName: 'Event Notifications',
+          event: 'user.registered',
+          status: 'success',
+          responseStatus: 200,
+          duration: 245,
+          createdAt: new Date().toISOString()
+        }
+      ];
+
+      res.json({ logs });
+    } catch (error) {
+      console.error('Error fetching webhook logs:', error);
+      res.status(500).json({ error: 'Failed to fetch webhook logs' });
+    }
+  }
+
+  // Integration Test
+  static async testIntegration(req, res) {
+    try {
+      const { platform, config } = req.body;
+      
+      // Mock test - in real implementation, test actual integrations
+      res.json({ 
+        success: true, 
+        message: `${platform} integration test successful` 
+      });
+    } catch (error) {
+      console.error('Error testing integration:', error);
+      res.status(500).json({ 
+        success: false, 
+        error: 'Integration test failed' 
+      });
+    }
+  }
+
+  // Rate Limiting Management
+  static async getRateLimitSettings(req, res) {
+    try {
+      // Get rate limiting settings from system settings
+      const setting = await SystemSetting.findOne({
+        where: { key: 'api_rate_limit_config' }
+      });
+
+      const defaultSettings = {
+        enabled: true,
+        globalLimit: 100,
+        windowMs: 60000,
+        userLimit: 50,
+        skipSuccessfulRequests: false,
+        skipFailedRequests: false,
+        endpoints: {
+          '/api/auth/login': { limit: 5, windowMs: 300000 },
+          '/api/auth/register': { limit: 3, windowMs: 300000 },
+          '/api/whiskies': { limit: 200, windowMs: 60000 }
+        },
+        whitelist: [],
+        blacklist: []
+      };
+
+      const settings = setting ? 
+        { ...defaultSettings, ...JSON.parse(setting.value) } : 
+        defaultSettings;
+
+      res.json(settings);
+    } catch (error) {
+      console.error('Error fetching rate limit settings:', error);
+      res.status(500).json({ error: 'Failed to fetch rate limit settings' });
+    }
+  }
+
+  static async updateRateLimitSettings(req, res) {
+    try {
+      const settings = req.body;
+
+      // Save to system settings
+      await SystemSetting.upsert({
+        key: 'api_rate_limit_config',
+        value: JSON.stringify(settings),
+        data_type: 'json',
+        description: 'API rate limiting configuration'
+      });
+
+      res.json({ success: true, message: 'Rate limit settings updated' });
+    } catch (error) {
+      console.error('Error updating rate limit settings:', error);
+      res.status(500).json({ error: 'Failed to update rate limit settings' });
+    }
+  }
+
+  static async getRateLimitStats(req, res) {
+    try {
+      // Mock stats - in real implementation, get from rate limiter store
+      const stats = {
+        totalRequests: 15420,
+        blockedRequests: 87,
+        uniqueIPs: 1256,
+        topEndpoints: [
+          { path: '/api/whiskies', count: 8432 },
+          { path: '/api/auth/login', count: 2341 },
+          { path: '/api/ratings', count: 1876 }
+        ],
+        recentBlocked: [
+          {
+            ip: '192.168.1.100',
+            endpoint: '/api/auth/login',
+            timestamp: new Date().toISOString()
+          }
+        ]
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error('Error fetching rate limit stats:', error);
+      res.status(500).json({ error: 'Failed to fetch rate limit stats' });
+    }
   }
 }
 

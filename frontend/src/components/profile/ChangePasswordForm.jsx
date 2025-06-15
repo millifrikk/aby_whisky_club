@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import toast from 'react-hot-toast';
+import PasswordInput from '../security/PasswordInput';
 
 const ChangePasswordForm = ({ onSuccess }) => {
   const { changePassword } = useAuth();

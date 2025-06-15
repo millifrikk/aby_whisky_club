@@ -5,6 +5,17 @@ import { adminAPI } from '../../services/api';
 import toast from 'react-hot-toast';
 import CurrencyManagementPanel from '../../components/admin/CurrencyManagementPanel';
 import LocalizationTestPanel from '../../components/admin/LocalizationTestPanel';
+import AppearanceTestPanel from '../../components/admin/AppearanceTestPanel';
+import MaintenanceModePanel from '../../components/admin/MaintenanceModePanel';
+import DataExportPanel from '../../components/admin/DataExportPanel';
+import ContentModerationPanel from '../../components/admin/ContentModerationPanel';
+import AdvancedAnalyticsPanel from '../../components/admin/AdvancedAnalyticsPanel';
+import DataRetentionPanel from '../../components/admin/DataRetentionPanel';
+import SearchHistoryPanel from '../../components/admin/SearchHistoryPanel';
+import SocialFeaturesTestPanel from '../../components/admin/SocialFeaturesTestPanel';
+import ThirdPartyIntegrationsPanel from '../../components/admin/ThirdPartyIntegrationsPanel';
+import WebhookNotificationsPanel from '../../components/admin/WebhookNotificationsPanel';
+import RateLimitingPanel from '../../components/admin/RateLimitingPanel';
 import SettingsSearch from '../../components/admin/SettingsSearch';
 import SettingsSearchResults from '../../components/admin/SettingsSearchResults';
 import ErrorBoundary from '../../components/common/ErrorBoundary';
@@ -439,11 +450,52 @@ const SystemSettingsPage = () => {
                 {category.charAt(0).toUpperCase() + category.slice(1)} Settings
               </h2>
 
-              {/* Enhanced Currency Management for Localization Category */}
+              {/* Enhanced Management Panels for Specific Categories */}
               {category === 'localization' && (
                 <div className="space-y-6 mb-6">
                   <CurrencyManagementPanel />
                   <LocalizationTestPanel />
+                </div>
+              )}
+              
+              {category === 'appearance' && (
+                <div className="space-y-6 mb-6">
+                  <AppearanceTestPanel />
+                </div>
+              )}
+              
+              {category === 'general' && (
+                <div className="space-y-6 mb-6">
+                  <MaintenanceModePanel />
+                  <DataExportPanel />
+                  <DataRetentionPanel />
+                  <SearchHistoryPanel />
+                </div>
+              )}
+              
+              {category === 'analytics' && (
+                <div className="space-y-6 mb-6">
+                  <AdvancedAnalyticsPanel />
+                </div>
+              )}
+              
+              {category === 'content' && (
+                <div className="space-y-6 mb-6">
+                  <ContentModerationPanel />
+                </div>
+              )}
+              
+              {category === 'social_features' && (
+                <div className="space-y-6 mb-6">
+                  <SocialFeaturesTestPanel />
+                </div>
+              )}
+              
+              {category === 'api_integration' && (
+                <div className="space-y-6 mb-6">
+                  <ThirdPartyIntegrationsPanel />
+                  <WebhookNotificationsPanel />
+                  <RateLimitingPanel />
                 </div>
               )}
 

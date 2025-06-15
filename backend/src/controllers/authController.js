@@ -201,15 +201,21 @@ class AuthController {
       // Validate password
       const isValidPassword = await user.validatePassword(password);
       if (!isValidPassword) {
-        // Get max login attempts from settings
-        const maxLoginAttempts = await SystemSetting.getSetting('max_login_attempts', 5);
+        // Get security settings
+        const { getSecuritySettings } = require('../utils/securityUtils');
+        const securitySettings = await getSecuritySettings();
         
-        // Increment failed attempts
-        await user.incrementFailedAttempts(maxLoginAttempts);
+        // Increment failed attempts with dynamic settings
+        await user.incrementFailedAttempts(
+          securitySettings.loginAttemptLimit,
+          securitySettings.accountLockoutDuration
+        );
         
-        const remainingAttempts = maxLoginAttempts - user.failed_login_attempts;
+        const remainingAttempts = securitySettings.loginAttemptLimit - user.failed_login_attempts;
+        const lockoutDuration = securitySettings.accountLockoutDuration;
+        
         const message = user.isAccountLocked() 
-          ? 'Account has been temporarily locked due to too many failed login attempts. Please try again in 15 minutes.'
+          ? `Account has been temporarily locked due to too many failed login attempts. Please try again in ${lockoutDuration} minutes.`
           : remainingAttempts > 0 
             ? `Invalid email or password. ${remainingAttempts} attempt(s) remaining before account is locked.`
             : 'Invalid email or password';
@@ -218,6 +224,25 @@ class AuthController {
           error: 'Authentication failed',
           message,
           remainingAttempts: user.isAccountLocked() ? 0 : remainingAttempts
+        });
+      }
+
+      // Check if 2FA is required
+      const sitewideEnabled = await SystemSetting.getSetting('enable_two_factor_auth', false);
+      const requires2FA = user.two_factor_enabled && sitewideEnabled;
+
+      if (requires2FA) {
+        // 2FA is required - don't complete login yet
+        return res.json({
+          message: '2FA verification required',
+          requires2FA: true,
+          tempUserId: user.id, // Temporary identifier for 2FA verification
+          user: {
+            id: user.id,
+            email: user.email,
+            first_name: user.first_name,
+            two_factor_enabled: user.two_factor_enabled
+          }
         });
       }
 
@@ -247,6 +272,78 @@ class AuthController {
       res.status(500).json({
         error: 'Login failed',
         message: 'An error occurred during login'
+      });
+    }
+  }
+
+  // Complete 2FA login
+  static async complete2FALogin(req, res) {
+    try {
+      const { tempUserId, token } = req.body;
+
+      if (!tempUserId || !token) {
+        return res.status(400).json({
+          error: 'Missing required fields',
+          message: 'User ID and 2FA token are required'
+        });
+      }
+
+      const user = await User.findByPk(tempUserId);
+      
+      if (!user) {
+        return res.status(404).json({
+          error: 'User not found',
+          message: 'Invalid user ID'
+        });
+      }
+
+      if (!user.two_factor_enabled) {
+        return res.status(400).json({
+          error: '2FA not enabled',
+          message: '2FA is not enabled for this user'
+        });
+      }
+
+      // Verify 2FA token
+      const verification = await user.verify2FA(token);
+      
+      if (!verification.success) {
+        return res.status(400).json({
+          error: '2FA verification failed',
+          message: verification.error || 'Invalid 2FA token'
+        });
+      }
+
+      // Successful 2FA - complete login
+      if (user.failed_login_attempts > 0) {
+        await user.resetFailedAttempts();
+      }
+
+      // Generate token
+      const authToken = generateToken({ 
+        userId: user.id, 
+        email: user.email, 
+        role: user.role 
+      });
+
+      // Update last login
+      await user.update({ last_login: new Date() });
+
+      res.json({
+        message: '2FA verification successful',
+        user: user.toSafeObject(),
+        token: authToken,
+        twoFactorMethod: verification.method,
+        ...(verification.remaining_codes !== undefined && {
+          remainingBackupCodes: verification.remaining_codes
+        })
+      });
+
+    } catch (error) {
+      console.error('2FA login completion error:', error);
+      res.status(500).json({
+        error: 'Login failed',
+        message: 'An error occurred during 2FA verification'
       });
     }
   }
@@ -675,6 +772,110 @@ class AuthController {
       res.status(500).json({
         error: 'Failed to update notification preferences',
         message: 'An error occurred while updating notification preferences'
+      });
+    }
+  }
+
+  // Get password requirements
+  static async getPasswordRequirements(req, res) {
+    try {
+      const { getSecuritySettings } = require('../utils/securityUtils');
+      const securitySettings = await getSecuritySettings();
+      
+      // Default password complexity rules if not set
+      const defaultRules = {
+        minLength: 8,
+        requireUppercase: true,
+        requireLowercase: true,
+        requireNumbers: true,
+        requireSpecialChars: true,
+        preventCommonPasswords: true,
+        preventPersonalInfo: true
+      };
+      
+      const passwordComplexity = securitySettings.passwordComplexity || defaultRules;
+      
+      res.json({
+        requirements: {
+          minLength: passwordComplexity.minLength || 8,
+          requireUppercase: passwordComplexity.requireUppercase !== false,
+          requireLowercase: passwordComplexity.requireLowercase !== false,
+          requireNumbers: passwordComplexity.requireNumbers !== false,
+          requireSpecialChars: passwordComplexity.requireSpecialChars !== false,
+          preventCommonPasswords: passwordComplexity.preventCommonPasswords !== false,
+          preventPersonalInfo: passwordComplexity.preventPersonalInfo !== false
+        }
+      });
+
+    } catch (error) {
+      console.error('Get password requirements error:', error);
+      res.status(500).json({
+        error: 'Failed to get password requirements',
+        message: 'An error occurred while fetching password requirements'
+      });
+    }
+  }
+
+  // Get session information
+  static async getSessionInfo(req, res) {
+    try {
+      const { getSecuritySettings } = require('../utils/securityUtils');
+      const securitySettings = await getSecuritySettings();
+      
+      const user = await User.findByPk(req.user.id, {
+        attributes: ['id', 'email', 'last_login', 'created_at']
+      });
+
+      if (!user) {
+        return res.status(404).json({
+          error: 'User not found',
+          message: 'User not found'
+        });
+      }
+
+      // Calculate session expiry based on settings
+      const sessionTimeoutHours = securitySettings.sessionTimeoutHours;
+      const idleTimeoutMinutes = securitySettings.idleTimeoutMinutes;
+      
+      // For JWT, we need to decode the token to get issued time
+      const jwt = require('jsonwebtoken');
+      const authHeader = req.headers.authorization;
+      const token = authHeader && authHeader.split(' ')[1];
+      
+      let sessionExpiry = null;
+      let idleExpiry = null;
+      
+      if (token) {
+        try {
+          const decoded = jwt.decode(token);
+          const issuedAt = new Date(decoded.iat * 1000);
+          sessionExpiry = new Date(issuedAt.getTime() + (sessionTimeoutHours * 60 * 60 * 1000));
+          idleExpiry = new Date(Date.now() + (idleTimeoutMinutes * 60 * 1000));
+        } catch (decodeError) {
+          console.warn('Could not decode JWT for session info:', decodeError.message);
+        }
+      }
+
+      res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          lastLogin: user.last_login
+        },
+        session: {
+          sessionTimeoutHours,
+          idleTimeoutMinutes,
+          sessionExpiry,
+          idleExpiry,
+          requiresRefresh: sessionExpiry && sessionExpiry < new Date(Date.now() + (30 * 60 * 1000)) // 30 minutes
+        }
+      });
+
+    } catch (error) {
+      console.error('Get session info error:', error);
+      res.status(500).json({
+        error: 'Failed to get session info',
+        message: 'An error occurred while fetching session information'
       });
     }
   }
