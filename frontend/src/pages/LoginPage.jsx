@@ -76,11 +76,11 @@ const LoginPage = () => {
         <div>
           <div className="text-center">
             <h1 className="text-4xl font-bold text-amber-800">🥃</h1>
-            <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+            <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
               {t('auth.welcome_back')}
             </h2>
             {allowRegistration && (
-              <p className="mt-2 text-sm text-gray-600">
+              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                 Or{' '}
                 <Link
                   to="/register"
@@ -91,7 +91,7 @@ const LoginPage = () => {
               </p>
             )}
             {!allowRegistration && (
-              <p className="mt-2 text-sm text-gray-500">
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 {t('auth.registration_disabled')}
               </p>
             )}
@@ -101,7 +101,7 @@ const LoginPage = () => {
         <form className="mt-8 space-y-6" onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('auth.email')}
               </label>
               <input
@@ -123,7 +123,7 @@ const LoginPage = () => {
             </div>
 
             <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+              <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
                 {t('auth.password')}
               </label>
               <div className="mt-1 relative">
