@@ -1,32 +1,219 @@
-# Multi-stage build for production
-FROM node:18-alpine as builder
+# Multi-stage build for production React frontend
+# Stage 1: Build the application
+FROM node:18-alpine AS builder
 
 # Set working directory
 WORKDIR /app
 
-# Copy package files
+# Copy package files first for better Docker layer caching
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci
+# Install dependencies with production optimizations
+RUN npm ci --only=production --ignore-scripts && \
+    npm cache clean --force
 
-# Copy source code
+# Install dev dependencies needed for build
+RUN npm install --only=dev
+
+# Copy application source code
 COPY . .
 
-# Build the application
+# Set production environment
+ENV NODE_ENV=production
+
+# Build the application with production optimizations
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
+# Verify build output exists
+RUN ls -la dist/
 
-# Copy built assets from builder stage
+# Stage 2: Production nginx server
+FROM nginx:alpine AS production
+
+# Install security updates
+RUN apk update && apk upgrade && apk add --no-cache \
+    shadow \
+    && rm -rf /var/cache/apk/*
+
+# Create non-root user for nginx
+RUN addgroup -g 1001 -S nginx-app && \
+    adduser -S -D -H -u 1001 -h /var/cache/nginx -s /sbin/nologin -G nginx-app -g nginx-app nginx-app
+
+# Copy custom nginx configuration
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Remove default nginx config and create necessary directories
+RUN rm -f /etc/nginx/conf.d/default.conf.template && \
+    mkdir -p /var/cache/nginx/client_temp && \
+    mkdir -p /var/cache/nginx/proxy_temp && \
+    mkdir -p /var/cache/nginx/fastcgi_temp && \
+    mkdir -p /var/cache/nginx/uwsgi_temp && \
+    mkdir -p /var/cache/nginx/scgi_temp && \
+    mkdir -p /var/log/nginx
+
+# Copy built application from builder stage
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Copy nginx configuration
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# Set proper permissions
+RUN chown -R nginx-app:nginx-app /usr/share/nginx/html && \
+    chown -R nginx-app:nginx-app /var/cache/nginx && \
+    chown -R nginx-app:nginx-app /var/log/nginx && \
+    chmod -R 755 /usr/share/nginx/html
+
+# Create nginx.conf with security hardening
+RUN cat > /etc/nginx/nginx.conf << 'EOF'
+user nginx-app;
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+    use epoll;
+    multi_accept on;
+}
+
+http {
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+    
+    # Security headers
+    server_tokens off;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self'; connect-src 'self' https:; frame-ancestors 'self';" always;
+    
+    # Performance optimizations
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    client_max_body_size 16M;
+    
+    # Logging
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                   '$status $body_bytes_sent "$http_referer" '
+                   '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+    
+    # Gzip compression
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_comp_level 6;
+    gzip_types
+        application/atom+xml
+        application/geo+json
+        application/javascript
+        application/x-javascript
+        application/json
+        application/ld+json
+        application/manifest+json
+        application/rdf+xml
+        application/rss+xml
+        application/xhtml+xml
+        application/xml
+        font/eot
+        font/otf
+        font/ttf
+        image/svg+xml
+        text/css
+        text/javascript
+        text/plain
+        text/xml;
+    
+    include /etc/nginx/conf.d/*.conf;
+}
+EOF
+
+# Update the site configuration for better security and performance
+RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
+server {
+    listen 80;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+    
+    # Security headers (already set globally, but can be overridden per location)
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-XSS-Protection "1; mode=block" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    
+    # Hide nginx version
+    server_tokens off;
+    
+    # Handle client-side routing (React Router)
+    location / {
+        try_files $uri $uri/ /index.html;
+        
+        # Security for HTML files
+        location ~* \.html$ {
+            add_header Cache-Control "no-cache, no-store, must-revalidate";
+            add_header Pragma "no-cache";
+            add_header Expires "0";
+        }
+    }
+    
+    # Cache static assets aggressively
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot|webp|avif)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+        add_header Vary "Accept-Encoding";
+        
+        # CORS headers for fonts and assets
+        location ~* \.(woff|woff2|ttf|eot)$ {
+            add_header Access-Control-Allow-Origin "*";
+        }
+    }
+    
+    # Handle manifest and service worker files
+    location ~* \.(webmanifest|manifest\.json)$ {
+        expires 7d;
+        add_header Cache-Control "public";
+        add_header Content-Type "application/manifest+json";
+    }
+    
+    # Prevent access to hidden files
+    location ~ /\. {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    # Prevent access to source maps in production
+    location ~* \.map$ {
+        deny all;
+        access_log off;
+        log_not_found off;
+    }
+    
+    # API routes should return 404 (handled by backend in production)
+    location /api {
+        return 404;
+    }
+    
+    # Health check endpoint
+    location /health {
+        access_log off;
+        return 200 "healthy\n";
+        add_header Content-Type text/plain;
+    }
+}
+EOF
+
+# Switch to non-root user
+USER nginx-app
 
 # Expose port 80
 EXPOSE 80
 
-# Start nginx
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+
+# Start nginx in foreground
 CMD ["nginx", "-g", "daemon off;"]

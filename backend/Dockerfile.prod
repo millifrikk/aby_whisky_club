@@ -1,4 +1,8 @@
-FROM node:18-alpine
+# Multi-stage build for production
+FROM node:18-alpine AS builder
+
+# Install tini for proper init system
+RUN apk add --no-cache tini
 
 # Set working directory
 WORKDIR /app
@@ -6,26 +10,51 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install production dependencies only
-RUN npm ci --only=production
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
-# Copy application code
+# Copy source code
 COPY . .
 
-# Create non-root user
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S backend -u 1001
+# Remove unnecessary files and dev dependencies
+RUN npm prune --production
 
-# Change ownership of the app directory
-RUN chown -R backend:nodejs /app
+# Production stage
+FROM node:18-alpine
+
+# Install tini and curl for health check
+RUN apk add --no-cache tini curl
+
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S backend -u 1001 -G nodejs
+
+# Set working directory
+WORKDIR /app
+
+# Copy production dependencies and application code from builder stage
+COPY --from=builder --chown=backend:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=backend:nodejs /app/package*.json ./
+COPY --chown=backend:nodejs ./src ./src
+
+# Create necessary directories with proper permissions
+RUN mkdir -p /app/uploads /app/logs && \
+    chown -R backend:nodejs /app/uploads /app/logs && \
+    chmod 755 /app/uploads /app/logs
+
+# Remove any potential security risks
+RUN rm -rf /app/.git* /app/test* /app/docs /app/*.md /app/Dockerfile* || true
+
+# Switch to non-root user
 USER backend
 
 # Expose port
 EXPOSE 3001
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3001/api/health || exit 1
+# Health check using curl
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:3001/api/health || exit 1
 
-# Start the application in production mode
-CMD ["npm", "start"]
+# Use tini as init system and start the application
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["node", "src/server.js"]
